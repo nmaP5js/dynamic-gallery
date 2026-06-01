@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <meta name="description" content="A minimalist dynamic art collage display for floating images and motion compositions.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Main canvas container for floating items -->
+    <div id="artboard" role="main"></div>
+
+    <!-- Hidden drop-zone overlay hint -->
+    <div id="drop-hint">Drop images here</div>
+
+    <!-- Startup instructions hint in the center -->
+    <div id="intro-hint">
+        Press ESC or Double-Click to configure<br>
+        <span class="mobile-hint">Tap screen on mobile to open settings</span>
+    </div>
+
+    <!-- Ultra-minimalist settings control panel (toggled via ESC or Double Click) -->
+    <div id="settings-panel" class="hidden" aria-label="Settings Panel">
+        <div class="settings-section">
+            <span class="settings-title">Settings</span>
+        </div>
+        
+        <div class="settings-section">
+            <label for="control-mode">Mode</label>
+            <select id="control-mode">
+                <option value="drift" selected>3D Drift (Floating)</option>
+                <option value="orbit">Orbit (3D Circular)</option>
+                <option value="orbit2d">Orbit (2D Circular)</option>
+                <option value="columns">Columns (2D Vertical)</option>
+                <option value="rows">Rows (2D Horizontal)</option>
+                <option value="tunnel">Zoom (3D Tunnel)</option>
+                <option value="assemble">Assemble (Drift/Grid Cycle)</option>
+                <option value="grid">Grid Flow (2D Scrolling)</option>
+                <option value="cinematic">Cinematic (Diagonal Sweep)</option>
+            </select>
+        </div>
+
+        <div class="settings-section">
+            <label for="control-speed">Speed</label>
+            <input type="range" id="control-speed" min="0.05" max="3" step="0.05" value="0.5">
+        </div>
+
+        <div class="settings-section">
+            <label for="control-scale">Size</label>
+            <input type="range" id="control-scale" min="0.2" max="2.5" step="0.05" value="1.0">
+        </div>
+
+        <div class="settings-section">
+            <label for="control-spread">Spread</label>
+            <input type="range" id="control-spread" min="0.1" max="2" step="0.05" value="1.0">
+        </div>
+
+
+        <div class="settings-section">
+            <label for="control-upload">Add Media</label>
+            <input type="file" id="control-upload" multiple accept="image/*">
+        </div>
+
+        <div class="settings-section actions">
+            <button id="control-clear" type="button">Clear All</button>
+            <button id="control-reset" type="button">Reset Defaults</button>
+        </div>
+
+        <div class="settings-section actions">
+            <button id="control-export" type="button">Export Image</button>
+        </div>
+
+        <div class="settings-section footer">
+            <p>Drag & drop media anywhere on screen.</p>
+            <p>Press <strong>ESC</strong> or <strong>Double-Click</strong> to hide.</p>
+            <p class="credit">Made by Nicolas Marie-Angélique</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
