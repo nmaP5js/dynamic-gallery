@@ -286,3 +286,26 @@ input[type="range"]::-moz-range-thumb:hover {
 body.drag-over #drop-hint {
     opacity: 1;
 }
+
+/* Mobile responsive bottom sheet layout for settings panel */
+@media (max-width: 480px) {
+    #settings-panel {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        border-radius: 24px 24px 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        margin: 0;
+        padding: 20px 24px 34px 24px; /* extra bottom padding for mobile safe area */
+        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08);
+    }
+    
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+}
+
