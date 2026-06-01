@@ -294,13 +294,43 @@ body.drag-over #drop-hint {
         right: 0;
         bottom: 0;
         width: auto;
-        border-radius: 24px 24px 0 0;
+        border-radius: 16px 16px 0 0;
         border-left: none;
         border-right: none;
         border-bottom: none;
         margin: 0;
-        padding: 20px 24px 34px 24px; /* extra bottom padding for mobile safe area */
-        box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08);
+        padding: 12px 16px 16px 16px; /* reduced padding to keep it lower */
+        gap: 8px; /* tighter spacing between controls */
+        font-size: 11px;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
+    }
+    
+    #settings-panel .settings-section {
+        gap: 4px;
+    }
+    
+    #settings-panel .settings-title {
+        padding-bottom: 4px;
+    }
+    
+    #settings-panel select,
+    #settings-panel input[type="file"],
+    #settings-panel button {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    
+    #settings-panel .footer p:not(.credit) {
+        display: none; /* hide redundant instructions on mobile to save space */
+    }
+    
+    #settings-panel .footer {
+        padding-top: 6px;
+        margin-top: 2px;
+    }
+    
+    #settings-panel .credit {
+        margin-top: 0;
     }
     
     #settings-panel.hidden {
