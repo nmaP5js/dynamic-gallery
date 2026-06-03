@@ -79,25 +79,27 @@ html, body {
     margin-top: 4px;
 }
 
-/* Settings panel - modernized, clean UI */
+/* Settings panel - modernized, clean horizontal UI on desktop */
 #settings-panel {
     position: fixed;
     bottom: 24px;
     left: 50%;
-    width: 260px;
+    width: max-content;
+    max-width: 95vw;
     background-color: rgba(255, 255, 255, 0.481);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(0, 0, 0, 0.06);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
     border-radius: 16px;
-    padding: 20px;
+    padding: 10px 20px;
     z-index: 10000;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
     gap: 16px;
     font-family: 'Google Sans', sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     color: #222222;
     transition: opacity 0.2s ease, transform 0.2s ease;
     opacity: 1;
@@ -114,16 +116,27 @@ html, body {
 .settings-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+}
+
+/* Thin vertical separator lines between settings columns on desktop */
+.settings-section:not(:last-child) {
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    padding-right: 14px;
+}
+
+.settings-section.actions,
+.settings-section.footer {
+    border-right: none !important;
+    padding-right: 0 !important;
 }
 
 .settings-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
     color: #444444;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    padding-bottom: 6px;
+    text-transform: uppercase;
 }
 
 label {
@@ -141,13 +154,13 @@ button {
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 8px;
-    padding: 8px 10px;
-    width: 100%;
+    padding: 6px 10px;
     outline: none;
     transition: all 0.2s ease;
 }
 
 select {
+    width: 130px;
     cursor: pointer;
     appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
@@ -163,14 +176,16 @@ select:hover, select:focus {
 }
 
 input[type="file"] {
+    width: 120px;
     background: rgba(255, 255, 255, 0.4);
     cursor: pointer;
+    font-size: 10px;
 }
 
 button {
+    width: auto;
     cursor: pointer;
     font-weight: 600;
-    padding: 8px 12px;
 }
 
 #control-clear {
@@ -242,7 +257,7 @@ input[type="range"]::-moz-range-thumb:hover {
 .url-input-group {
     display: flex;
     gap: 8px;
-    width: 100%;
+    width: 180px;
 }
 
 .url-input-group input {
@@ -253,7 +268,7 @@ input[type="range"]::-moz-range-thumb:hover {
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 6px 8px;
     outline: none;
     transition: all 0.2s ease;
     min-width: 0;
@@ -268,13 +283,13 @@ input[type="range"]::-moz-range-thumb:hover {
 .url-input-group button {
     width: auto;
     white-space: nowrap;
-    padding: 8px 16px;
+    padding: 6px 10px;
 }
 
 .actions {
     flex-direction: row;
     gap: 8px;
-    margin-top: 4px;
+    margin-top: 0;
 }
 
 .actions button {
@@ -282,11 +297,15 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .footer {
-    border-top: 1px dashed #eaeaea;
-    padding-top: 12px;
+    border-top: none;
+    padding-top: 0;
     color: #888888;
     line-height: 1.5;
     font-size: 11px;
+}
+
+.footer p:not(.credit) {
+    display: none; /* Hide instructions on desktop toolbar */
 }
 
 .credit {
@@ -326,6 +345,7 @@ body.drag-over #drop-hint {
         right: 0;
         bottom: 0;
         width: auto;
+        max-width: 100%;
         border-radius: 16px 16px 0 0;
         border-left: none;
         border-right: none;
@@ -335,10 +355,22 @@ body.drag-over #drop-hint {
         gap: 8px; /* tighter spacing between controls */
         font-size: 11px;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
+        flex-direction: column; /* Force vertical on mobile */
+        align-items: stretch;
+        transform: none;
     }
     
     #settings-panel .settings-section {
         gap: 4px;
+        border-right: none !important;
+        padding-right: 0 !important;
+    }
+    
+    #settings-panel select,
+    #settings-panel input[type="file"],
+    #settings-panel input[type="range"],
+    #settings-panel .url-input-group {
+        width: 100% !important;
     }
     
     #settings-panel .settings-title {
