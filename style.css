@@ -83,7 +83,7 @@ html, body {
 #settings-panel {
     position: fixed;
     bottom: 24px;
-    right: 24px;
+    left: 50%;
     width: 260px;
     background-color: rgba(255, 255, 255, 0.481);
     backdrop-filter: blur(16px);
@@ -101,13 +101,13 @@ html, body {
     color: #222222;
     transition: opacity 0.2s ease, transform 0.2s ease;
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
     pointer-events: all;
 }
 
 #settings-panel.hidden {
     opacity: 0;
-    transform: translateY(10px) scale(0.98);
+    transform: translateX(-50%) translateY(10px) scale(0.98);
     pointer-events: none;
 }
 
