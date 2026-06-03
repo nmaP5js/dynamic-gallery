@@ -115,8 +115,9 @@ html, body {
 
 .settings-section {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
 }
 
 /* Thin vertical separator lines between settings columns on desktop */
@@ -140,8 +141,12 @@ html, body {
 }
 
 label {
-    font-weight: 500;
-    color: #444444;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666666;
+    white-space: nowrap;
 }
 
 /* Modern inputs */
@@ -361,6 +366,8 @@ body.drag-over #drop-hint {
     }
     
     #settings-panel .settings-section {
+        flex-direction: column !important;
+        align-items: stretch !important;
         gap: 4px;
         border-right: none !important;
         padding-right: 0 !important;
