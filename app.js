@@ -30,6 +30,8 @@ const controlUpload = document.getElementById('control-upload');
 const controlClear = document.getElementById('control-clear');
 const controlReset = document.getElementById('control-reset');
 const controlExport = document.getElementById('control-export');
+const controlUrlInput = document.getElementById('control-url-input');
+const controlUrlSubmit = document.getElementById('control-url-submit');
 
 
 function createMediaElement(src) {
@@ -37,6 +39,7 @@ function createMediaElement(src) {
     container.className = 'collage-item';
     
     const el = document.createElement('img');
+    el.crossOrigin = "anonymous";
     el.src = src;
     el.onload = () => {
         const aspect = el.naturalWidth / el.naturalHeight;
@@ -523,7 +526,15 @@ function loadMediaFromDB() {
             items.forEach((item) => {
                 if (item.isVideo) return; // Skip legacy video items
                 
-                const url = URL.createObjectURL(item.blob);
+                let url;
+                if (item.blob instanceof Blob) {
+                    url = URL.createObjectURL(item.blob);
+                } else if (typeof item.blob === 'string') {
+                    url = item.blob;
+                } else {
+                    return;
+                }
+                
                 const mediaItem = createMediaElement(url);
                 
                 const rangeX = window.innerWidth * 0.5;
@@ -717,6 +728,62 @@ function handleFiles(files) {
         item.orbitAngle = Math.random() * Math.PI * 2;
     });
 }
+
+function handleURL(url) {
+    if (!url) return;
+    url = url.trim();
+    if (url === "") return;
+    
+    hideIntroHint();
+    
+    const addImage = (src, blobOrUrlToSave) => {
+        saveMediaToDB(blobOrUrlToSave);
+        const item = createMediaElement(src);
+        
+        // Position the newly uploaded item
+        const rangeX = window.innerWidth * 0.5;
+        const rangeY = window.innerHeight * 0.5;
+        item.x = (Math.random() - 0.5) * rangeX;
+        item.y = (Math.random() - 0.5) * rangeY;
+        item.z = (Math.random() - 0.5) * 300;
+        item.orbitAngle = Math.random() * Math.PI * 2;
+    };
+    
+    // Try fetching the URL as a blob for local database persistence and high-res canvas exports
+    fetch(url)
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.blob();
+        })
+        .then(blob => {
+            if (!blob.type.startsWith('image/')) {
+                alert('Only image or GIF URLs are supported.');
+                return;
+            }
+            const localUrl = URL.createObjectURL(blob);
+            addImage(localUrl, blob);
+            controlUrlInput.value = ""; // clear input
+        })
+        .catch(err => {
+            console.warn('CORS or network error fetching URL as blob. Falling back to direct URL load:', err);
+            // Fallback: direct URL load. We save the string URL to IndexedDB so it still persists
+            addImage(url, url);
+            controlUrlInput.value = ""; // clear input
+        });
+}
+
+// URL Input bindings
+controlUrlSubmit.addEventListener('click', () => {
+    handleURL(controlUrlInput.value);
+});
+
+controlUrlInput.addEventListener('keydown', (e) => {
+    // Prevent default form behavior if inside form, and trigger handleURL
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        handleURL(controlUrlInput.value);
+    }
+});
 
 // File Input Picker
 controlUpload.addEventListener('change', (e) => {

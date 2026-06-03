@@ -239,6 +239,38 @@ input[type="range"]::-moz-range-thumb:hover {
     transform: scale(1.15);
 }
 
+.url-input-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.url-input-group input {
+    flex: 1;
+    font-family: inherit;
+    font-size: inherit;
+    color: #222222;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 8px 10px;
+    outline: none;
+    transition: all 0.2s ease;
+    min-width: 0;
+}
+
+.url-input-group input:hover,
+.url-input-group input:focus {
+    border-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.85);
+}
+
+.url-input-group button {
+    width: auto;
+    white-space: nowrap;
+    padding: 8px 16px;
+}
+
 .actions {
     flex-direction: row;
     gap: 8px;
@@ -315,6 +347,7 @@ body.drag-over #drop-hint {
     
     #settings-panel select,
     #settings-panel input[type="file"],
+    #settings-panel input[type="url"],
     #settings-panel button {
         padding: 6px 8px;
         font-size: 11px;
