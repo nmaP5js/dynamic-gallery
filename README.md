@@ -4,7 +4,7 @@
 [![Pure Vanilla JS](https://img.shields.io/badge/Made%20with-Vanilla%20JS-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Glassmorphism UI](https://img.shields.io/badge/UI-Glassmorphism-00c8ff?style=flat-square)](https://en.wikipedia.org/wiki/Glassmorphism)
 
-An interactive, client-side, dynamic art lookbook and collage tool. Built with a raw, distraction-free aesthetic on a pure white canvas, it animates user-dropped images across 9 distinct layout motion formulas. 
+An interactive, client-side, dynamic art lookbook and collage tool. Built with a raw, distraction-free aesthetic on a pure white canvas, it animates user-dropped images across 11 distinct layout motion formulas. 
 
 Ideal for design portfolios, visual boards, exhibition loops, and digital showcases.
 
@@ -14,7 +14,7 @@ Ideal for design portfolios, visual boards, exhibition loops, and digital showca
 
 - **🖼️ Interactive Drag & Drop:** Drop any image files directly onto the canvas to automatically begin animating.
 - **💾 Local Persistence (IndexedDB):** All dropped images are saved as binary blobs locally in your browser. Reopening or reloading the page retains your collage perfectly without losing files.
-- **🌌 9 Motion & Layout Modes:**
+- **🌌 11 Motion & Layout Modes:**
   1. **3D Drift (Floating):** Floating elements with Z-depth layering.
   2. **Orbit (3D Circular):** A depth-based carousel rotating in a 3D orbit.
   3. **Orbit (2D Circular):** A flat circular carousel mapping layout coordinates.
@@ -24,6 +24,8 @@ Ideal for design portfolios, visual boards, exhibition loops, and digital showca
   7. **Assemble (Drift/Grid Cycle):** Alternates every 12 seconds between organic drifting and gathering into a flat clean grid.
   8. **Grid Flow (2D Scrolling):** Three vertical scrolling columns flowing in alternating patterns.
   9. **Cinematic (Diagonal Sweep):** A smooth diagonal sweep with soft-edge borders and depth parallax.
+  10. **Vortex (3D Spiral):** A cosmic whirlpool where images spiral outwards from the center, scaling up in depth.
+  11. **Pendulum (Gravity Sway):** A mobile-sculpture design where images swing organically as pendulums from distributed ceiling anchors.
 - **⚙️ Custom Parameters:** Fine-tune the speed, size scales, and spatial spread dynamically using a minimalist glassmorphic control panel.
 - **📸 2x High-Resolution Export:** Capture and export the collage layout as a high-density PNG file (`collage.png`) instantly. Works completely offline.
 - **📱 Responsive & Touch Ready:** Full screen support for mobile taps and responsive layout dynamics.

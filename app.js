@@ -159,6 +159,18 @@ function distributeElements() {
             item.z = -200 + Math.random() * 300;
             item.x = -window.innerWidth * 0.7 + (i / n) * window.innerWidth * 1.4;
             item.y = window.innerHeight * 0.7 - (i / n) * window.innerHeight * 1.4;
+        } else if (config.mode === 'vortex') {
+            // Distribute radius and angles to make a spiral galaxy form on mode load
+            const maxRadius = Math.max(window.innerWidth, window.innerHeight) * 0.6;
+            item.vortexRadius = (i / n) * maxRadius;
+            item.vortexAngle = (i * 2 * Math.PI) / n + Math.random() * 0.5;
+            item.z = -1200 + (item.vortexRadius / maxRadius) * 1400;
+        } else if (config.mode === 'pendulum') {
+            // Distribute anchor points evenly along the screen width
+            item.anchorX = -window.innerWidth * 0.55 + (i / Math.max(1, n - 1)) * window.innerWidth * 1.1;
+            item.pendulumLength = window.innerHeight * (0.35 + 0.3 * Math.random());
+            item.pendulumPhase = Math.random() * Math.PI * 2;
+            item.pendulumMaxAngle = 0.15 + Math.random() * 0.15; // in radians
         } else {
             // Drift random initial positions in viewport
             const rangeX = window.innerWidth * 0.6;
@@ -423,6 +435,59 @@ function animate() {
             const fadeX = Math.min(1, (limitX - Math.abs(x)) / (limitX * 0.2));
             const fadeY = Math.min(1, (limitY - Math.abs(y)) / (limitY * 0.2));
             item.fadeOpacity = Math.max(0, Math.min(1, fadeX * fadeY));
+        } else if (config.mode === 'vortex') {
+            // --- Mode 10: Vortex 3D Spiral ---
+            const maxRadius = Math.max(vw, vh) * 0.6;
+            if (item.vortexRadius === undefined) {
+                item.vortexRadius = Math.random() * maxRadius;
+                item.vortexAngle = Math.random() * Math.PI * 2;
+            }
+            
+            item.vortexAngle += 0.006 * config.speed;
+            item.vortexRadius += 1.2 * config.speed;
+            
+            if (item.vortexRadius > maxRadius) {
+                item.vortexRadius = 0;
+                item.vortexAngle = Math.random() * Math.PI * 2;
+            }
+            
+            x = Math.cos(item.vortexAngle) * item.vortexRadius * config.spread;
+            y = Math.sin(item.vortexAngle) * item.vortexRadius * config.spread;
+            z = -1200 + (item.vortexRadius / maxRadius) * 1400;
+            
+            // Fade in at center and fade out at outer boundary
+            let opacityWeight = 1.0;
+            if (item.vortexRadius < maxRadius * 0.15) {
+                opacityWeight = item.vortexRadius / (maxRadius * 0.15);
+            } else if (item.vortexRadius > maxRadius * 0.8) {
+                opacityWeight = 1.0 - (item.vortexRadius - maxRadius * 0.8) / (maxRadius * 0.2);
+            }
+            item.fadeOpacity = Math.max(0, Math.min(1, opacityWeight));
+            
+            item.x = x;
+            item.y = y;
+            item.z = z;
+        } else if (config.mode === 'pendulum') {
+            // --- Mode 11: Pendulum Gravity Sway ---
+            if (item.anchorX === undefined) {
+                item.anchorX = (Math.random() - 0.5) * vw * 0.8;
+                item.pendulumLength = vh * (0.35 + 0.3 * Math.random());
+                item.pendulumPhase = Math.random() * Math.PI * 2;
+                item.pendulumMaxAngle = 0.15 + Math.random() * 0.15;
+            }
+            
+            const omega = 1.6 * config.speed;
+            const theta = item.pendulumMaxAngle * Math.sin(omega * time + item.pendulumPhase);
+            
+            x = item.anchorX + Math.sin(theta) * item.pendulumLength * config.spread;
+            y = -vh * 0.45 + Math.cos(theta) * item.pendulumLength;
+            z = Math.sin(time + item.seed) * 50; // subtle depth swing
+            
+            item.pendulumAngle = theta * (180 / Math.PI) * 0.8;
+            
+            item.x = x;
+            item.y = y;
+            item.z = z;
         }
         
         // --- 3D Depth Rendering ---
@@ -431,6 +496,9 @@ function animate() {
         if (config.mode === 'tunnel') {
             modeMinZ = -2500;
             modeMaxZ = 500;
+        } else if (config.mode === 'vortex') {
+            modeMinZ = -1200;
+            modeMaxZ = 200;
         }
         
         const normalizedDepth = (z - modeMinZ) / (modeMaxZ - modeMinZ);
@@ -456,12 +524,16 @@ function animate() {
             // Straighten rotation as target grid is approached
             const gatherWeight = item.gatherWeight || 0;
             angleRot = (item.dx * 2) * (1 - gatherWeight);
+        } else if (config.mode === 'vortex') {
+            angleRot = item.vortexAngle * (180 / Math.PI) * 0.15;
+        } else if (config.mode === 'pendulum' && item.pendulumAngle !== undefined) {
+            angleRot = item.pendulumAngle;
         }
             
         item.element.style.zIndex = zIndex;
         
-        // Solid opacity by default, apply soft fade weight only in cinematic mode
-        const finalOpacity = config.mode === 'cinematic' ? (item.fadeOpacity !== undefined ? item.fadeOpacity : 1.0) : 1.0;
+        // Solid opacity by default, apply soft fade weight in cinematic and vortex modes
+        const finalOpacity = (config.mode === 'cinematic' || config.mode === 'vortex') ? (item.fadeOpacity !== undefined ? item.fadeOpacity : 1.0) : 1.0;
         item.element.style.opacity = finalOpacity;
         
         // Save current coordinates for canvas export
