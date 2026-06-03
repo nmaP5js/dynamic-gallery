@@ -96,6 +96,8 @@ html, body {
     z-index: 10000;
     display: flex;
     flex-direction: row;
+    flex-wrap: wrap; /* wraps items instead of overflowing */
+    justify-content: center;
     align-items: center;
     gap: 16px;
     font-family: 'Google Sans', sans-serif;
@@ -139,9 +141,33 @@ html, body {
     text-transform: uppercase;
 }
 
-label {
+label,
+.settings-label {
     font-weight: 500;
     color: #444444;
+}
+
+.upload-btn {
+    display: inline-block;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #222222;
+    transition: all 0.2s ease;
+    width: 110px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.upload-btn:hover {
+    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.15);
 }
 
 /* Modern inputs */
@@ -221,6 +247,7 @@ input[type="range"] {
     border-radius: 2px;
     padding: 0;
     outline: none;
+    width: 70px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -338,66 +365,7 @@ body.drag-over #drop-hint {
     opacity: 1;
 }
 
-/* Tablet & Medium Screen responsive layout (Centered vertical card) */
-@media (max-width: 900px) {
-    #settings-panel {
-        flex-direction: column;
-        align-items: stretch;
-        width: 280px;
-        left: 50%;
-        bottom: 24px;
-        transform: translateX(-50%) translateY(0) scale(1);
-        border-radius: 16px;
-        padding: 20px;
-        gap: 12px;
-        font-size: 12px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-    }
-
-    #settings-panel.hidden {
-        opacity: 0;
-        transform: translateX(-50%) translateY(10px) scale(0.98);
-        pointer-events: none;
-    }
-    
-    #settings-panel .settings-section {
-        gap: 6px;
-        border-right: none !important;
-        padding-right: 0 !important;
-    }
-    
-    #settings-panel select,
-    #settings-panel input[type="file"],
-    #settings-panel input[type="range"],
-    #settings-panel .url-input-group {
-        width: 100% !important;
-    }
-
-    #settings-panel select,
-    #settings-panel input[type="file"],
-    #settings-panel input[type="url"],
-    #settings-panel button {
-        padding: 8px 10px;
-        font-size: 12px;
-    }
-
-    #settings-panel .footer p:not(.credit) {
-        display: block; /* Show instructions on vertical card */
-        margin-top: 4px;
-    }
-
-    #settings-panel .footer {
-        border-top: 1px dashed #eaeaea;
-        padding-top: 12px;
-        margin-top: 4px;
-    }
-    
-    #settings-panel .credit {
-        margin-top: 8px;
-    }
-}
-
-/* Mobile Phone responsive layout (Full-width bottom sheet) */
+/* Mobile responsive bottom sheet layout for settings panel */
 @media (max-width: 480px) {
     #settings-panel {
         left: 0;
@@ -410,44 +378,56 @@ body.drag-over #drop-hint {
         border-right: none;
         border-bottom: none;
         margin: 0;
-        padding: 12px 16px 16px 16px;
-        gap: 8px;
+        padding: 12px 16px 16px 16px; /* reduced padding to keep it lower */
+        gap: 8px; /* tighter spacing between controls */
         font-size: 11px;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
-        flex-direction: column;
+        flex-direction: column; /* Force vertical on mobile */
         align-items: stretch;
         transform: none;
     }
-
-    #settings-panel.hidden {
-        opacity: 0;
-        transform: translateY(100%);
-    }
-
+    
     #settings-panel .settings-section {
         gap: 4px;
+        border-right: none !important;
+        padding-right: 0 !important;
     }
-
+    
     #settings-panel select,
-    #settings-panel input[type="file"],
+    #settings-panel .upload-btn,
+    #settings-panel input[type="range"],
+    #settings-panel .url-input-group {
+        width: 100% !important;
+    }
+    
+    #settings-panel .settings-title {
+        padding-bottom: 4px;
+    }
+    
+    #settings-panel select,
+    #settings-panel .upload-btn,
     #settings-panel input[type="url"],
     #settings-panel button {
         padding: 6px 8px;
         font-size: 11px;
     }
-
+    
     #settings-panel .footer p:not(.credit) {
-        display: none; /* Hide instructions on phone bottom sheet */
+        display: none; /* hide redundant instructions on mobile to save space */
     }
-
+    
     #settings-panel .footer {
-        border-top: none;
         padding-top: 6px;
         margin-top: 2px;
     }
-
+    
     #settings-panel .credit {
         margin-top: 0;
+    }
+    
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateY(100%);
     }
 }
 
