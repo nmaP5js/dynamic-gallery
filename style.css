@@ -79,27 +79,27 @@ html, body {
     margin-top: 4px;
 }
 
-/* Settings panel - modernized, clean horizontal UI on desktop */
+/* Settings panel - modernized, ultra-compact horizontal bar on desktop */
 #settings-panel {
     position: fixed;
-    bottom: 24px;
+    bottom: 16px;
     left: 50%;
     width: max-content;
-    max-width: 95vw;
+    max-width: 98vw;
     background-color: rgba(255, 255, 255, 0.481);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
-    border-radius: 16px;
-    padding: 10px 20px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    padding: 6px 14px;
     z-index: 10000;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     font-family: 'Google Sans', sans-serif;
-    font-size: 11px;
+    font-size: 10px;
     color: #222222;
     transition: opacity 0.2s ease, transform 0.2s ease;
     opacity: 1;
@@ -109,21 +109,21 @@ html, body {
 
 #settings-panel.hidden {
     opacity: 0;
-    transform: translateX(-50%) translateY(10px) scale(0.98);
+    transform: translateX(-50%) translateY(8px) scale(0.99);
     pointer-events: none;
 }
 
 .settings-section {
     display: flex;
-    flex-direction: row;
+    flex-direction: row; /* inline labels + inputs on desktop */
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 /* Thin vertical separator lines between settings columns on desktop */
 .settings-section:not(:last-child) {
     border-right: 1px solid rgba(0, 0, 0, 0.05);
-    padding-right: 14px;
+    padding-right: 12px;
 }
 
 .settings-section.actions,
@@ -133,19 +133,17 @@ html, body {
 }
 
 .settings-title {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.1em;
-    color: #444444;
+    letter-spacing: 0.05em;
+    color: #333333;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 label {
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #666666;
+    font-weight: 600;
+    color: #555555;
     white-space: nowrap;
 }
 
@@ -154,37 +152,38 @@ select,
 input[type="file"],
 button {
     font-family: inherit;
-    font-size: inherit;
+    font-size: 10px;
     color: #222222;
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 8px;
-    padding: 6px 10px;
+    border-radius: 6px;
+    padding: 4px 8px;
     outline: none;
     transition: all 0.2s ease;
 }
 
 select {
-    width: 130px;
+    width: 110px;
     cursor: pointer;
     appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 10px;
-    padding-right: 30px;
+    background-position: right 6px center;
+    background-size: 8px;
+    padding-right: 18px;
 }
 
 select:hover, select:focus {
-    border-color: rgba(0, 0, 0, 0.15);
-    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.12);
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
 input[type="file"] {
-    width: 120px;
-    background: rgba(255, 255, 255, 0.4);
+    width: 90px;
+    background: rgba(255, 255, 255, 0.3);
     cursor: pointer;
-    font-size: 10px;
+    font-size: 9px;
+    padding: 3px 6px;
 }
 
 button {
@@ -220,22 +219,23 @@ button {
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    height: 4px;
+    height: 3px;
+    width: 55px;
     background: #eaeaea;
     border: none;
-    border-radius: 2px;
+    border-radius: 1.5px;
     padding: 0;
     outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     background: #111111;
     border: 2px solid #ffffff;
     border-radius: 50%;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: transform 0.1s ease;
 }
@@ -245,12 +245,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     background: #111111;
     border: 2px solid #ffffff;
     border-radius: 50%;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: transform 0.1s ease;
 }
@@ -261,19 +261,19 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .url-input-group {
     display: flex;
-    gap: 8px;
-    width: 180px;
+    gap: 4px;
+    width: 130px;
 }
 
 .url-input-group input {
     flex: 1;
     font-family: inherit;
-    font-size: inherit;
+    font-size: 9px;
     color: #222222;
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 8px;
-    padding: 6px 8px;
+    border-radius: 6px;
+    padding: 4px 6px;
     outline: none;
     transition: all 0.2s ease;
     min-width: 0;
@@ -281,19 +281,19 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .url-input-group input:hover,
 .url-input-group input:focus {
-    border-color: rgba(0, 0, 0, 0.15);
-    background-color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.12);
+    background-color: rgba(255, 255, 255, 0.8);
 }
 
 .url-input-group button {
     width: auto;
     white-space: nowrap;
-    padding: 6px 10px;
+    padding: 4px 8px;
 }
 
 .actions {
     flex-direction: row;
-    gap: 8px;
+    gap: 4px;
     margin-top: 0;
 }
 
@@ -306,7 +306,7 @@ input[type="range"]::-moz-range-thumb:hover {
     padding-top: 0;
     color: #888888;
     line-height: 1.5;
-    font-size: 11px;
+    font-size: 9px;
 }
 
 .footer p:not(.credit) {
@@ -314,9 +314,8 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .credit {
-    margin-top: 8px;
-    color: #aaaaaa;
-    font-size: 10px;
+    margin-top: 0;
+    white-space: nowrap;
 }
 
 /* Drag-and-drop indicator overlay */
@@ -343,8 +342,8 @@ body.drag-over #drop-hint {
     opacity: 1;
 }
 
-/* Mobile responsive bottom sheet layout for settings panel */
-@media (max-width: 480px) {
+/* Responsive media query: swap to vertical bottom-sheet on screens less than 960px */
+@media (max-width: 960px) {
     #settings-panel {
         left: 0;
         right: 0;
@@ -356,21 +355,32 @@ body.drag-over #drop-hint {
         border-right: none;
         border-bottom: none;
         margin: 0;
-        padding: 12px 16px 16px 16px; /* reduced padding to keep it lower */
-        gap: 8px; /* tighter spacing between controls */
+        padding: 16px 20px 24px 20px;
+        gap: 12px;
         font-size: 11px;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
-        flex-direction: column; /* Force vertical on mobile */
+        flex-direction: column; /* Force vertical vertical stacking */
         align-items: stretch;
         transform: none;
     }
     
-    #settings-panel .settings-section {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 4px;
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+    
+    .settings-section {
+        flex-direction: column; /* Stack label + input vertically */
+        align-items: stretch;
+        gap: 6px;
         border-right: none !important;
         padding-right: 0 !important;
+    }
+    
+    .settings-title {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 6px;
+        font-size: 11px;
     }
     
     #settings-panel select,
@@ -380,34 +390,60 @@ body.drag-over #drop-hint {
         width: 100% !important;
     }
     
-    #settings-panel .settings-title {
-        padding-bottom: 4px;
-    }
-    
     #settings-panel select,
     #settings-panel input[type="file"],
     #settings-panel input[type="url"],
     #settings-panel button {
-        padding: 6px 8px;
+        padding: 8px 10px;
         font-size: 11px;
     }
     
-    #settings-panel .footer p:not(.credit) {
-        display: none; /* hide redundant instructions on mobile to save space */
+    .url-input-group {
+        gap: 8px;
     }
     
-    #settings-panel .footer {
-        padding-top: 6px;
-        margin-top: 2px;
+    .url-input-group input {
+        font-size: 11px;
     }
     
-    #settings-panel .credit {
-        margin-top: 0;
+    .url-input-group button {
+        padding: 8px 12px;
     }
     
-    #settings-panel.hidden {
-        opacity: 0;
-        transform: translateY(100%);
+    #settings-panel input[type="range"] {
+        height: 4px;
+        width: 100%;
+    }
+    
+    #settings-panel input[type="range"]::-webkit-slider-thumb {
+        width: 16px;
+        height: 16px;
+    }
+    
+    #settings-panel input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .actions {
+        margin-top: 4px;
+        gap: 8px;
+    }
+    
+    .footer {
+        border-top: 1px dashed #eaeaea;
+        padding-top: 12px;
+        margin-top: 4px;
+        font-size: 11px;
+    }
+    
+    .footer p:not(.credit) {
+        display: block; /* Show text instructions on mobile vertical sheet */
+        margin-bottom: 4px;
+    }
+    
+    .credit {
+        margin-top: 8px;
     }
 }
 
