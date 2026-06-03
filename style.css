@@ -473,54 +473,37 @@ body.drag-over #drop-hint {
         bottom: 0;
         width: auto;
         max-width: 100%;
-        border-radius: 12px 12px 0 0;
+        border-radius: 16px 16px 0 0;
         border-left: none;
         border-right: none;
         border-bottom: none;
         margin: 0;
-        padding: 8px 12px 10px 12px;
-        gap: 4px;
-        font-size: 10px;
-        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+        padding: 10px 14px 12px 14px;
+        gap: 6px;
+        font-size: 11px;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
         flex-direction: column;
         align-items: stretch;
         transform: none;
     }
     
     #settings-panel .settings-section {
-        display: flex;
-        flex-direction: row !important;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
+        gap: 3px;
         border-right: none !important;
         padding-right: 0 !important;
-        width: 100%;
     }
     
     #settings-panel .parameters-group {
         flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 3px !important;
-    }
-    
-    #settings-panel .parameter-item {
-        display: flex;
-        flex-direction: row !important;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
+        gap: 6px;
     }
     
     #settings-panel select,
     #settings-panel .custom-select,
     #settings-panel .upload-btn,
-    #settings-panel input[type="range"] {
-        width: 130px !important;
-    }
-    
+    #settings-panel input[type="range"],
     #settings-panel .url-input-group {
-        width: 170px !important;
+        width: 100% !important;
     }
     
     #settings-panel .custom-select-options {
@@ -537,47 +520,21 @@ body.drag-over #drop-hint {
     #settings-panel .upload-btn,
     #settings-panel input[type="url"],
     #settings-panel button {
-        padding: 4px 6px;
-        font-size: 9.5px;
-        border-radius: 6px;
-    }
-    
-    #settings-panel input[type="range"] {
-        height: 3px;
-    }
-    
-    #settings-panel input[type="range"]::-webkit-slider-thumb {
-        width: 12px;
-        height: 12px;
-    }
-    
-    #settings-panel input[type="range"]::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
-    }
-    
-    #settings-panel .settings-section.actions {
-        flex-direction: row !important;
-        justify-content: space-between;
-        gap: 6px;
-        margin-top: 4px;
-    }
-    
-    #settings-panel .settings-section.footer {
-        flex-direction: column !important;
-        align-items: center;
-        gap: 0px;
-        padding-top: 4px;
-        margin-top: 2px;
+        padding: 5px 8px;
+        font-size: 11px;
     }
     
     #settings-panel .footer p:not(.credit) {
         display: none;
     }
     
+    #settings-panel .footer {
+        padding-top: 4px;
+        margin-top: 2px;
+    }
+    
     #settings-panel .credit {
         margin-top: 0;
-        font-size: 9px;
     }
     
     #settings-panel.hidden {
