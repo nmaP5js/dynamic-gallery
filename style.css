@@ -324,6 +324,96 @@ input[type="range"]::-moz-range-thumb:hover {
     padding: 6px 10px;
 }
 
+/* Custom styled select box (glassmorphism dropdown) */
+.custom-select {
+    position: relative;
+    width: 130px;
+    font-family: inherit;
+    font-size: inherit;
+}
+
+.custom-select-trigger {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 6px 10px;
+    padding-right: 30px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #222222;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+}
+
+.custom-select-trigger:hover {
+    border-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.85);
+}
+
+.custom-select-options {
+    position: absolute;
+    bottom: calc(100% + 8px); /* Open upwards so it's not cut off by screen boundaries */
+    left: 0;
+    width: 180px;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.08);
+    z-index: 10005;
+    display: none;
+    flex-direction: column;
+    padding: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Custom scrollbar styling inside options list */
+.custom-select-options::-webkit-scrollbar {
+    width: 4px;
+}
+.custom-select-options::-webkit-scrollbar-track {
+    background: transparent;
+}
+.custom-select-options::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
+.custom-select.open .custom-select-options {
+    display: flex;
+}
+
+.custom-option {
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #444444;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+}
+
+.custom-option:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: #111111;
+}
+
+.custom-option.selected {
+    background: rgba(17, 17, 17, 0.08);
+    color: #111111;
+    font-weight: 600;
+}
+
 .actions {
     flex-direction: row;
     gap: 8px;
@@ -411,10 +501,16 @@ body.drag-over #drop-hint {
     }
     
     #settings-panel select,
+    #settings-panel .custom-select,
     #settings-panel .upload-btn,
     #settings-panel input[type="range"],
     #settings-panel .url-input-group {
         width: 100% !important;
+    }
+    
+    #settings-panel .custom-select-options {
+        width: 100% !important;
+        box-sizing: border-box;
     }
     
     #settings-panel .settings-title {
@@ -422,6 +518,7 @@ body.drag-over #drop-hint {
     }
     
     #settings-panel select,
+    #settings-panel .custom-select-trigger,
     #settings-panel .upload-btn,
     #settings-panel input[type="url"],
     #settings-panel button {

@@ -733,9 +733,51 @@ artboard.addEventListener('click', (e) => {
 });
 
 // Settings UI change bindings
+function syncCustomModeDropdown() {
+    const val = controlMode.value;
+    const trigger = document.querySelector('.custom-select-trigger');
+    const selectedOption = document.querySelector(`.custom-option[data-value="${val}"]`);
+    
+    if (selectedOption) {
+        if (trigger) trigger.textContent = selectedOption.textContent;
+        
+        document.querySelectorAll('.custom-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        selectedOption.classList.add('selected');
+    }
+}
+
 controlMode.addEventListener('change', (e) => {
     config.mode = e.target.value;
     distributeElements();
+    syncCustomModeDropdown();
+});
+
+// Custom dropdown select listeners
+const customSelect = document.getElementById('custom-mode-select');
+const customTrigger = customSelect.querySelector('.custom-select-trigger');
+const customOptions = customSelect.querySelectorAll('.custom-option');
+
+customTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    customSelect.classList.toggle('open');
+});
+
+customOptions.forEach(opt => {
+    opt.addEventListener('click', (e) => {
+        const val = opt.getAttribute('data-value');
+        controlMode.value = val;
+        controlMode.dispatchEvent(new Event('change'));
+        customSelect.classList.remove('open');
+    });
+});
+
+// Close custom dropdown when clicking outside
+window.addEventListener('click', () => {
+    if (customSelect.classList.contains('open')) {
+        customSelect.classList.remove('open');
+    }
 });
 
 controlSpeed.addEventListener('input', (e) => {
@@ -769,6 +811,8 @@ controlReset.addEventListener('click', () => {
     controlSpeed.value = 0.5;
     controlScale.value = 1.0;
     controlSpread.value = 1.0;
+    
+    syncCustomModeDropdown();
 });
 
 controlExport.addEventListener('click', () => {
@@ -890,4 +934,5 @@ initDB(() => {
     animate();
     // Initially hide settings panel after boot so the canvas looks pure right away
     settingsPanel.classList.add('hidden');
+    syncCustomModeDropdown();
 });

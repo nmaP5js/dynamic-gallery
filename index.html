@@ -22,10 +22,9 @@
 
     <!-- Ultra-minimalist settings control panel (toggled via ESC or Double Click) -->
     <div id="settings-panel" class="hidden" aria-label="Settings Panel">
-        
         <div class="settings-section">
             <label for="control-mode">Mode</label>
-            <select id="control-mode">
+            <select id="control-mode" style="display: none;">
                 <option value="drift" selected>3D Drift (Floating)</option>
                 <option value="orbit">Orbit (3D Circular)</option>
                 <option value="orbit2d">Orbit (2D Circular)</option>
@@ -38,6 +37,22 @@
                 <option value="vortex">Vortex (3D Spiral)</option>
                 <option value="pendulum">Pendulum (Gravity Sway)</option>
             </select>
+            <div class="custom-select" id="custom-mode-select">
+                <div class="custom-select-trigger">3D Drift (Floating)</div>
+                <div class="custom-select-options">
+                    <div class="custom-option selected" data-value="drift">3D Drift (Floating)</div>
+                    <div class="custom-option" data-value="orbit">Orbit (3D Circular)</div>
+                    <div class="custom-option" data-value="orbit2d">Orbit (2D Circular)</div>
+                    <div class="custom-option" data-value="columns">Columns (2D Vertical)</div>
+                    <div class="custom-option" data-value="rows">Rows (2D Horizontal)</div>
+                    <div class="custom-option" data-value="tunnel">Zoom (3D Tunnel)</div>
+                    <div class="custom-option" data-value="assemble">Assemble (Drift/Grid Cycle)</div>
+                    <div class="custom-option" data-value="grid">Grid Flow (2D Scrolling)</div>
+                    <div class="custom-option" data-value="cinematic">Cinematic (Diagonal Sweep)</div>
+                    <div class="custom-option" data-value="vortex">Vortex (3D Spiral)</div>
+                    <div class="custom-option" data-value="pendulum">Pendulum (Gravity Sway)</div>
+                </div>
+            </div>
         </div>
 
         <div class="settings-section parameters-group">
