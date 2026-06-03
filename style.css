@@ -321,6 +321,7 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .actions button {
     flex: 1;
+    white-space: nowrap;
 }
 
 .footer {
