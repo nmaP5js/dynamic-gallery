@@ -79,27 +79,27 @@ html, body {
     margin-top: 4px;
 }
 
-/* Settings panel - modernized, ultra-compact horizontal bar on desktop */
+/* Settings panel - modernized, clean horizontal UI on desktop */
 #settings-panel {
     position: fixed;
-    bottom: 16px;
+    bottom: 24px;
     left: 50%;
     width: max-content;
-    max-width: 98vw;
+    max-width: 95vw;
     background-color: rgba(255, 255, 255, 0.481);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
-    border-radius: 12px;
-    padding: 6px 14px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+    border-radius: 16px;
+    padding: 10px 20px;
     z-index: 10000;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     font-family: 'Google Sans', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     color: #222222;
     transition: opacity 0.2s ease, transform 0.2s ease;
     opacity: 1;
@@ -109,21 +109,20 @@ html, body {
 
 #settings-panel.hidden {
     opacity: 0;
-    transform: translateX(-50%) translateY(8px) scale(0.99);
+    transform: translateX(-50%) translateY(10px) scale(0.98);
     pointer-events: none;
 }
 
 .settings-section {
     display: flex;
-    flex-direction: row; /* inline labels + inputs on desktop */
-    align-items: center;
-    gap: 6px;
+    flex-direction: column;
+    gap: 4px;
 }
 
 /* Thin vertical separator lines between settings columns on desktop */
 .settings-section:not(:last-child) {
     border-right: 1px solid rgba(0, 0, 0, 0.05);
-    padding-right: 12px;
+    padding-right: 14px;
 }
 
 .settings-section.actions,
@@ -133,18 +132,16 @@ html, body {
 }
 
 .settings-title {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    color: #333333;
+    letter-spacing: 0.1em;
+    color: #444444;
     text-transform: uppercase;
-    white-space: nowrap;
 }
 
 label {
-    font-weight: 600;
-    color: #555555;
-    white-space: nowrap;
+    font-weight: 500;
+    color: #444444;
 }
 
 /* Modern inputs */
@@ -152,38 +149,37 @@ select,
 input[type="file"],
 button {
     font-family: inherit;
-    font-size: 10px;
+    font-size: inherit;
     color: #222222;
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: 8px;
+    padding: 6px 10px;
     outline: none;
     transition: all 0.2s ease;
 }
 
 select {
-    width: 110px;
+    width: 130px;
     cursor: pointer;
     appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23444' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 6px center;
-    background-size: 8px;
-    padding-right: 18px;
+    background-position: right 10px center;
+    background-size: 10px;
+    padding-right: 30px;
 }
 
 select:hover, select:focus {
-    border-color: rgba(0, 0, 0, 0.12);
-    background-color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.85);
 }
 
 input[type="file"] {
-    width: 90px;
-    background: rgba(255, 255, 255, 0.3);
+    width: 120px;
+    background: rgba(255, 255, 255, 0.4);
     cursor: pointer;
-    font-size: 9px;
-    padding: 3px 6px;
+    font-size: 10px;
 }
 
 button {
@@ -219,23 +215,22 @@ button {
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    height: 3px;
-    width: 55px;
+    height: 4px;
     background: #eaeaea;
     border: none;
-    border-radius: 1.5px;
+    border-radius: 2px;
     padding: 0;
     outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     background: #111111;
     border: 2px solid #ffffff;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: transform 0.1s ease;
 }
@@ -245,12 +240,12 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
     background: #111111;
     border: 2px solid #ffffff;
     border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     transition: transform 0.1s ease;
 }
@@ -261,19 +256,19 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .url-input-group {
     display: flex;
-    gap: 4px;
-    width: 130px;
+    gap: 8px;
+    width: 180px;
 }
 
 .url-input-group input {
     flex: 1;
     font-family: inherit;
-    font-size: 9px;
+    font-size: inherit;
     color: #222222;
     background: rgba(255, 255, 255, 0.4);
     border: 1px solid rgba(0, 0, 0, 0.06);
-    border-radius: 6px;
-    padding: 4px 6px;
+    border-radius: 8px;
+    padding: 6px 8px;
     outline: none;
     transition: all 0.2s ease;
     min-width: 0;
@@ -281,19 +276,19 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .url-input-group input:hover,
 .url-input-group input:focus {
-    border-color: rgba(0, 0, 0, 0.12);
-    background-color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.85);
 }
 
 .url-input-group button {
     width: auto;
     white-space: nowrap;
-    padding: 4px 8px;
+    padding: 6px 10px;
 }
 
 .actions {
     flex-direction: row;
-    gap: 4px;
+    gap: 8px;
     margin-top: 0;
 }
 
@@ -306,7 +301,7 @@ input[type="range"]::-moz-range-thumb:hover {
     padding-top: 0;
     color: #888888;
     line-height: 1.5;
-    font-size: 9px;
+    font-size: 11px;
 }
 
 .footer p:not(.credit) {
@@ -314,8 +309,9 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .credit {
-    margin-top: 0;
-    white-space: nowrap;
+    margin-top: 8px;
+    color: #aaaaaa;
+    font-size: 10px;
 }
 
 /* Drag-and-drop indicator overlay */
@@ -342,8 +338,67 @@ body.drag-over #drop-hint {
     opacity: 1;
 }
 
-/* Responsive media query: swap to vertical bottom-sheet on screens less than 960px */
-@media (max-width: 960px) {
+/* Tablet & Medium Screen responsive layout (Centered vertical card) */
+@media (max-width: 900px) {
+    #settings-panel {
+        flex-direction: column;
+        align-items: stretch;
+        width: 280px;
+        left: 50%;
+        bottom: 24px;
+        transform: translateX(-50%) translateY(0) scale(1);
+        border-radius: 16px;
+        padding: 20px;
+        gap: 12px;
+        font-size: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    }
+
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px) scale(0.98);
+        pointer-events: none;
+    }
+    
+    #settings-panel .settings-section {
+        gap: 6px;
+        border-right: none !important;
+        padding-right: 0 !important;
+    }
+    
+    #settings-panel select,
+    #settings-panel input[type="file"],
+    #settings-panel input[type="range"],
+    #settings-panel .url-input-group {
+        width: 100% !important;
+    }
+
+    #settings-panel select,
+    #settings-panel input[type="file"],
+    #settings-panel input[type="url"],
+    #settings-panel button {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    #settings-panel .footer p:not(.credit) {
+        display: block; /* Show instructions on vertical card */
+        margin-top: 4px;
+    }
+
+    #settings-panel .footer {
+        border-top: 1px dashed #eaeaea;
+        padding-top: 12px;
+        margin-top: 4px;
+    }
+    
+    #settings-panel .credit {
+        margin-top: 8px;
+    }
+}
+
+/* Mobile Phone responsive layout (Full-width bottom sheet) */
+@media (max-width: 480px) {
     #settings-panel {
         left: 0;
         right: 0;
@@ -355,95 +410,44 @@ body.drag-over #drop-hint {
         border-right: none;
         border-bottom: none;
         margin: 0;
-        padding: 16px 20px 24px 20px;
-        gap: 12px;
+        padding: 12px 16px 16px 16px;
+        gap: 8px;
         font-size: 11px;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.06);
-        flex-direction: column; /* Force vertical vertical stacking */
+        flex-direction: column;
         align-items: stretch;
         transform: none;
     }
-    
+
     #settings-panel.hidden {
         opacity: 0;
         transform: translateY(100%);
     }
-    
-    .settings-section {
-        flex-direction: column; /* Stack label + input vertically */
-        align-items: stretch;
-        gap: 6px;
-        border-right: none !important;
-        padding-right: 0 !important;
+
+    #settings-panel .settings-section {
+        gap: 4px;
     }
-    
-    .settings-title {
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        padding-bottom: 6px;
-        font-size: 11px;
-    }
-    
-    #settings-panel select,
-    #settings-panel input[type="file"],
-    #settings-panel input[type="range"],
-    #settings-panel .url-input-group {
-        width: 100% !important;
-    }
-    
+
     #settings-panel select,
     #settings-panel input[type="file"],
     #settings-panel input[type="url"],
     #settings-panel button {
-        padding: 8px 10px;
+        padding: 6px 8px;
         font-size: 11px;
     }
-    
-    .url-input-group {
-        gap: 8px;
+
+    #settings-panel .footer p:not(.credit) {
+        display: none; /* Hide instructions on phone bottom sheet */
     }
-    
-    .url-input-group input {
-        font-size: 11px;
+
+    #settings-panel .footer {
+        border-top: none;
+        padding-top: 6px;
+        margin-top: 2px;
     }
-    
-    .url-input-group button {
-        padding: 8px 12px;
-    }
-    
-    #settings-panel input[type="range"] {
-        height: 4px;
-        width: 100%;
-    }
-    
-    #settings-panel input[type="range"]::-webkit-slider-thumb {
-        width: 16px;
-        height: 16px;
-    }
-    
-    #settings-panel input[type="range"]::-moz-range-thumb {
-        width: 16px;
-        height: 16px;
-    }
-    
-    .actions {
-        margin-top: 4px;
-        gap: 8px;
-    }
-    
-    .footer {
-        border-top: 1px dashed #eaeaea;
-        padding-top: 12px;
-        margin-top: 4px;
-        font-size: 11px;
-    }
-    
-    .footer p:not(.credit) {
-        display: block; /* Show text instructions on mobile vertical sheet */
-        margin-bottom: 4px;
-    }
-    
-    .credit {
-        margin-top: 8px;
+
+    #settings-panel .credit {
+        margin-top: 0;
     }
 }
 
