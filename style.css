@@ -121,6 +121,17 @@ html, body {
     gap: 4px;
 }
 
+.parameters-group {
+    flex-direction: row !important;
+    gap: 14px;
+}
+
+.parameter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
 /* Thin vertical separator lines between settings columns on desktop */
 .settings-section:not(:last-child) {
     border-right: 1px solid rgba(0, 0, 0, 0.05);
@@ -392,6 +403,11 @@ body.drag-over #drop-hint {
         gap: 4px;
         border-right: none !important;
         padding-right: 0 !important;
+    }
+    
+    #settings-panel .parameters-group {
+        flex-direction: column !important;
+        gap: 8px;
     }
     
     #settings-panel select,
