@@ -93,7 +93,6 @@ function getShapeCoordinates(shapeName, t, vw, vh) {
             }
             break;
             
-        case 'circle':
         default:
             x = baseSize * Math.cos(t);
             y = baseSize * Math.sin(t);
