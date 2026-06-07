@@ -544,3 +544,75 @@ body.drag-over #drop-hint {
     }
 }
 
+/* Shape Overlay path outline styling */
+#shape-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Fullscreen Drawing overlay for custom shape */
+#drawing-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 30px;
+    box-sizing: border-box;
+}
+
+.drawing-instruction {
+    font-family: 'Google Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111111;
+    text-align: center;
+    margin-top: 10px;
+    user-select: none;
+    pointer-events: none;
+    z-index: 20002;
+}
+
+#drawing-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    z-index: 20001;
+}
+
+#cancel-drawing-btn {
+    position: relative;
+    z-index: 20005;
+    background: #111111;
+    color: #ffffff;
+    border: 1px solid #111111;
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+#cancel-drawing-btn:hover {
+    background: #333333;
+    border-color: #333333;
+}
+

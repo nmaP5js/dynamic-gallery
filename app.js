@@ -16,7 +16,9 @@ const config = {
     mode: 'drift', // 'orbit' or 'drift'
     speed: 0.5,
     scale: 1.0,
-    spread: 1.0
+    spread: 1.0,
+    shape: 'heart',
+    customShapePoints: null
 };
 
 // DOM Elements
@@ -33,6 +35,197 @@ const controlExport = document.getElementById('control-export');
 const controlUrlInput = document.getElementById('control-url-input');
 const controlUrlSubmit = document.getElementById('control-url-submit');
 
+// New Shape selector and drawing elements
+const controlShape = document.getElementById('control-shape');
+const shapeSelectorSection = document.getElementById('shape-selector-section');
+const customShapeSelect = document.getElementById('custom-shape-select');
+const controlShapeUpload = document.getElementById('control-shape-upload');
+
+const drawingOverlay = document.getElementById('drawing-overlay');
+const drawingCanvas = document.getElementById('drawing-canvas');
+const cancelDrawingBtn = document.getElementById('cancel-drawing-btn');
+
+
+// --- Shape Flow Math & Custom Shape Operations ---
+let isDrawing = false;
+let drawingPoints = [];
+let drawingCtx = null;
+
+function getShapeCoordinates(shapeName, t, vw, vh) {
+    const baseSize = Math.min(vw, vh) * 0.35 * config.spread;
+    let x = 0, y = 0;
+    
+    switch (shapeName) {
+        case 'heart':
+            // Parametric Heart curve
+            const hx = 16 * Math.pow(Math.sin(t), 3);
+            const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+            x = (hx / 16) * baseSize;
+            // Align visually and slightly compress Y for aesthetics
+            y = (hy / 16) * baseSize * 0.95;
+            break;
+            
+        case 'star':
+            // 5-pointed star polar curve (smooth lobes)
+            const r = baseSize * (0.62 + 0.38 * Math.cos(5 * t));
+            x = r * Math.sin(t); // rotate 90 deg so tip points straight up
+            y = -r * Math.cos(t);
+            break;
+            
+        case 'infinity':
+            // Lemniscate of Bernoulli (figure-8)
+            const denom = 1 + Math.pow(Math.sin(t), 2);
+            x = (baseSize * 1.25 * Math.cos(t)) / denom;
+            y = (baseSize * 1.25 * Math.sin(t) * Math.cos(t)) / denom;
+            break;
+            
+        case 'custom':
+            if (config.customShapePoints && config.customShapePoints.length > 0) {
+                // Map continuous t (0 to 2pi) to normalized coordinates array
+                const percent = ((t % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
+                const idx = Math.floor(percent * config.customShapePoints.length);
+                const pt = config.customShapePoints[idx % config.customShapePoints.length];
+                
+                // Scale normalized coordinate (ranges -0.5 to 0.5) to viewport bounds
+                const customBase = Math.min(vw, vh) * 0.75 * config.spread;
+                x = pt.x * customBase;
+                y = pt.y * customBase;
+            }
+            break;
+            
+        case 'circle':
+        default:
+            x = baseSize * Math.cos(t);
+            y = baseSize * Math.sin(t);
+            break;
+    }
+    
+    return { x, y };
+}
+
+function updateShapeOverlayPath() {
+    const overlay = document.getElementById('shape-overlay');
+    const pathEl = document.getElementById('shape-path');
+    if (!overlay || !pathEl) return;
+    
+    if (config.mode !== 'shape') {
+        overlay.style.display = 'none';
+        return;
+    }
+    
+    overlay.style.display = 'block';
+    
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cx = vw / 2;
+    const cy = vh / 2;
+    
+    const points = [];
+    const numPoints = 150; // High resolution path representation
+    
+    for (let i = 0; i < numPoints; i++) {
+        const t = (i / numPoints) * Math.PI * 2;
+        const pt = getShapeCoordinates(config.shape, t, vw, vh);
+        points.push(`${cx + pt.x},${cy + pt.y}`);
+    }
+    
+    pathEl.setAttribute('d', 'M ' + points.join(' L ') + ' Z');
+}
+
+function loadCustomSvgPath(dAttribute) {
+    const overlay = document.getElementById('shape-overlay');
+    if (!overlay) return;
+    
+    // Create temporary path element inside overlay to measure geometry
+    const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    tempPath.setAttribute("d", dAttribute);
+    overlay.appendChild(tempPath);
+    
+    const bbox = tempPath.getBBox();
+    const totalLength = tempPath.getTotalLength();
+    
+    if (totalLength === 0 || bbox.width === 0 || bbox.height === 0) {
+        overlay.removeChild(tempPath);
+        return; // invalid path geometry
+    }
+    
+    // Sample 200 coordinates along the custom vector path
+    const numSamples = 200;
+    const sampledPoints = [];
+    
+    for (let i = 0; i < numSamples; i++) {
+        const dist = (i / numSamples) * totalLength;
+        const pt = tempPath.getPointAtLength(dist);
+        
+        // Center coordinates and normalize to -0.5 ... 0.5 scale
+        const normX = (pt.x - bbox.x - bbox.width / 2) / Math.max(bbox.width, bbox.height);
+        const normY = (pt.y - bbox.y - bbox.height / 2) / Math.max(bbox.width, bbox.height);
+        
+        sampledPoints.push({ x: normX, y: normY });
+    }
+    
+    overlay.removeChild(tempPath);
+    
+    // Save normalized coordinates
+    config.customShapePoints = sampledPoints;
+    config.shape = 'custom';
+    controlShape.value = 'custom';
+    
+    // Dynamic Custom Option display injection
+    ensureCustomOptionInDropdown();
+    
+    // Reset shape animation variables for smooth transition
+    mediaItems.forEach((item, idx) => {
+        item.shapeAngle = (idx * 2 * Math.PI) / Math.max(1, mediaItems.length);
+    });
+    
+    updateShapeOverlayPath();
+    syncCustomShapeDropdown();
+}
+
+function ensureCustomOptionInDropdown() {
+    // Check if Custom option already exists in native select
+    let customOpt = Array.from(controlShape.options).find(opt => opt.value === 'custom');
+    if (!customOpt) {
+        customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = 'Custom (Perso)';
+        controlShape.appendChild(customOpt);
+    }
+    customOpt.selected = true;
+    
+    // Check if Custom option already exists in custom dropdown options list
+    const customOptionsList = customShapeSelect.querySelector('.custom-select-options');
+    let customDivOpt = customOptionsList.querySelector('.custom-option[data-value="custom"]');
+    if (!customDivOpt) {
+        customDivOpt = document.createElement('div');
+        customDivOpt.className = 'custom-option';
+        customDivOpt.setAttribute('data-value', 'custom');
+        customDivOpt.textContent = 'Custom (Perso)';
+        
+        // Insert custom option before Draw option to keep special controls at the bottom
+        const drawOpt = customOptionsList.querySelector('.custom-option[data-value="draw"]');
+        customOptionsList.insertBefore(customDivOpt, drawOpt);
+        
+        // Add click listener to newly added custom option
+        customDivOpt.addEventListener('click', (e) => {
+            controlShape.value = 'custom';
+            controlShape.dispatchEvent(new Event('change'));
+            customShapeSelect.classList.remove('open');
+        });
+    }
+}
+
+function toggleShapeSelectorVisibility() {
+    if (config.mode === 'shape') {
+        shapeSelectorSection.style.display = 'flex';
+        updateShapeOverlayPath();
+    } else {
+        shapeSelectorSection.style.display = 'none';
+        const overlay = document.getElementById('shape-overlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+}
 
 function createMediaElement(src) {
     const container = document.createElement('div');
@@ -488,6 +681,25 @@ function animate() {
             item.x = x;
             item.y = y;
             item.z = z;
+        } else if (config.mode === 'shape') {
+            // --- Mode 12: Shape Flow ---
+            if (item.shapeAngle === undefined) {
+                // Distribute items evenly along the path when starting
+                item.shapeAngle = (mediaItems.indexOf(item) * 2 * Math.PI) / Math.max(1, mediaItems.length);
+            }
+            
+            // Advance angle based on speed
+            item.shapeAngle += 0.002 * config.speed;
+            
+            const pt = getShapeCoordinates(config.shape, item.shapeAngle, vw, vh);
+            x = pt.x;
+            y = pt.y;
+            // Add a subtle 3D wave depth swing to keep lookbook dimensional
+            z = Math.sin(item.shapeAngle * 3 + item.seed) * 80 * config.spread;
+            
+            item.x = x;
+            item.y = y;
+            item.z = z;
         }
         
         // --- 3D Depth Rendering ---
@@ -528,6 +740,8 @@ function animate() {
             angleRot = item.vortexAngle * (180 / Math.PI) * 0.15;
         } else if (config.mode === 'pendulum' && item.pendulumAngle !== undefined) {
             angleRot = item.pendulumAngle;
+        } else if (config.mode === 'shape' && item.shapeAngle !== undefined) {
+            angleRot = Math.cos(item.shapeAngle) * -8;
         }
             
         item.element.style.zIndex = zIndex;
@@ -735,13 +949,28 @@ artboard.addEventListener('click', (e) => {
 // Settings UI change bindings
 function syncCustomModeDropdown() {
     const val = controlMode.value;
-    const trigger = document.querySelector('.custom-select-trigger');
-    const selectedOption = document.querySelector(`.custom-option[data-value="${val}"]`);
+    const trigger = customSelect.querySelector('.custom-select-trigger');
+    const selectedOption = customSelect.querySelector(`.custom-option[data-value="${val}"]`);
     
     if (selectedOption) {
         if (trigger) trigger.textContent = selectedOption.textContent;
         
-        document.querySelectorAll('.custom-option').forEach(opt => {
+        customSelect.querySelectorAll('.custom-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        selectedOption.classList.add('selected');
+    }
+}
+
+function syncCustomShapeDropdown() {
+    const val = controlShape.value;
+    const trigger = customShapeSelect.querySelector('.custom-select-trigger');
+    const selectedOption = customShapeSelect.querySelector(`.custom-option[data-value="${val}"]`);
+    
+    if (selectedOption) {
+        if (trigger) trigger.textContent = selectedOption.textContent;
+        
+        customShapeSelect.querySelectorAll('.custom-option').forEach(opt => {
             opt.classList.remove('selected');
         });
         selectedOption.classList.add('selected');
@@ -752,6 +981,7 @@ controlMode.addEventListener('change', (e) => {
     config.mode = e.target.value;
     distributeElements();
     syncCustomModeDropdown();
+    toggleShapeSelectorVisibility();
 });
 
 // Custom dropdown select listeners
@@ -762,6 +992,7 @@ const customOptions = customSelect.querySelectorAll('.custom-option');
 customTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
     customSelect.classList.toggle('open');
+    customShapeSelect.classList.remove('open');
 });
 
 customOptions.forEach(opt => {
@@ -773,10 +1004,59 @@ customOptions.forEach(opt => {
     });
 });
 
-// Close custom dropdown when clicking outside
+// Custom shape select dropdown listeners
+const customShapeTrigger = customShapeSelect.querySelector('.custom-select-trigger');
+
+customShapeTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    customSelect.classList.remove('open');
+    customShapeSelect.classList.toggle('open');
+});
+
+function bindCustomShapeOptions() {
+    const customShapeOptions = customShapeSelect.querySelectorAll('.custom-option');
+    customShapeOptions.forEach(opt => {
+        // Use onclick to avoid stacking duplicate event listeners
+        opt.onclick = (e) => {
+            const val = opt.getAttribute('data-value');
+            controlShape.value = val;
+            controlShape.dispatchEvent(new Event('change'));
+            customShapeSelect.classList.remove('open');
+        };
+    });
+}
+bindCustomShapeOptions();
+
+controlShape.addEventListener('change', (e) => {
+    const val = e.target.value;
+    
+    if (val === 'draw') {
+        startInteractiveDrawing();
+        // Reset control value to previous shape to prevent "draw" from sticking
+        controlShape.value = config.shape;
+        syncCustomShapeDropdown();
+    } else if (val === 'upload') {
+        controlShapeUpload.click();
+        // Reset control value
+        controlShape.value = config.shape;
+        syncCustomShapeDropdown();
+    } else {
+        config.shape = val;
+        mediaItems.forEach((item, idx) => {
+            item.shapeAngle = (idx * 2 * Math.PI) / Math.max(1, mediaItems.length);
+        });
+        updateShapeOverlayPath();
+        syncCustomShapeDropdown();
+    }
+});
+
+// Close custom dropdowns when clicking outside
 window.addEventListener('click', () => {
     if (customSelect.classList.contains('open')) {
         customSelect.classList.remove('open');
+    }
+    if (customShapeSelect.classList.contains('open')) {
+        customShapeSelect.classList.remove('open');
     }
 });
 
@@ -790,8 +1070,8 @@ controlScale.addEventListener('input', (e) => {
 
 controlSpread.addEventListener('input', (e) => {
     config.spread = parseFloat(e.target.value);
+    updateShapeOverlayPath();
 });
-
 
 controlClear.addEventListener('click', () => {
     clearAllMedia();
@@ -805,18 +1085,178 @@ controlReset.addEventListener('click', () => {
     config.speed = 0.5;
     config.scale = 1.0;
     config.spread = 1.0;
+    config.shape = 'heart';
     
     // Reset values in UI
     controlMode.value = 'drift';
     controlSpeed.value = 0.5;
     controlScale.value = 1.0;
     controlSpread.value = 1.0;
+    controlShape.value = 'heart';
+    
+    // Remove injected custom option if exists
+    const customOpt = Array.from(controlShape.options).find(opt => opt.value === 'custom');
+    if (customOpt) customOpt.remove();
+    const customDivOpt = customShapeSelect.querySelector('.custom-option[data-value="custom"]');
+    if (customDivOpt) customDivOpt.remove();
+    bindCustomShapeOptions();
     
     syncCustomModeDropdown();
+    syncCustomShapeDropdown();
+    toggleShapeSelectorVisibility();
 });
 
 controlExport.addEventListener('click', () => {
     exportCollageAsImage();
+});
+
+// Window resize listener
+window.addEventListener('resize', () => {
+    updateShapeOverlayPath();
+});
+
+// --- Interactive Custom Drawing canvas ---
+function startInteractiveDrawing() {
+    drawingOverlay.style.display = 'flex';
+    
+    drawingCanvas.width = window.innerWidth;
+    drawingCanvas.height = window.innerHeight;
+    
+    drawingCtx = drawingCanvas.getContext('2d');
+    drawingCtx.strokeStyle = '#111111';
+    drawingCtx.lineWidth = 3.5;
+    drawingCtx.lineCap = 'round';
+    drawingCtx.lineJoin = 'round';
+    drawingCtx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+    drawingCtx.shadowBlur = 8;
+    
+    drawingPoints = [];
+    isDrawing = false;
+}
+
+function stopInteractiveDrawing(save = false) {
+    drawingOverlay.style.display = 'none';
+    if (save && drawingPoints.length > 8) {
+        let d = `M ${drawingPoints[0].x} ${drawingPoints[0].y}`;
+        for (let i = 1; i < drawingPoints.length; i++) {
+            d += ` L ${drawingPoints[i].x} ${drawingPoints[i].y}`;
+        }
+        d += ' Z';
+        loadCustomSvgPath(d);
+    }
+    drawingPoints = [];
+    isDrawing = false;
+}
+
+cancelDrawingBtn.addEventListener('click', () => {
+    stopInteractiveDrawing(false);
+});
+
+function getMousePos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+function handleDrawStart(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const pos = getMousePos(drawingCanvas, e);
+    drawingPoints.push(pos);
+    
+    drawingCtx.beginPath();
+    drawingCtx.moveTo(pos.x, pos.y);
+}
+
+function handleDrawMove(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    
+    const pos = getMousePos(drawingCanvas, e);
+    drawingPoints.push(pos);
+    
+    drawingCtx.lineTo(pos.x, pos.y);
+    drawingCtx.stroke();
+}
+
+function handleDrawEnd(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    stopInteractiveDrawing(true);
+}
+
+drawingCanvas.addEventListener('mousedown', handleDrawStart);
+drawingCanvas.addEventListener('mousemove', handleDrawMove);
+window.addEventListener('mouseup', (e) => {
+    if (isDrawing && e.target === drawingCanvas) {
+        handleDrawEnd(e);
+    } else {
+        isDrawing = false;
+    }
+});
+
+drawingCanvas.addEventListener('touchstart', handleDrawStart);
+drawingCanvas.addEventListener('touchmove', handleDrawMove);
+drawingCanvas.addEventListener('touchend', handleDrawEnd);
+
+// --- SVG File Upload Handler ---
+controlShapeUpload.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const svgText = evt.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, 'image/svg+xml');
+        
+        const pathEl = doc.querySelector('path, polygon, polyline, circle, rect, ellipse');
+        
+        if (!pathEl) {
+            alert("No vector path geometry found inside the SVG. Please make sure it contains a valid path or shape.");
+            return;
+        }
+        
+        let d = "";
+        const tagName = pathEl.tagName.toLowerCase();
+        
+        if (tagName === 'path') {
+            d = pathEl.getAttribute('d');
+        } else if (tagName === 'polygon' || tagName === 'polyline') {
+            const pointsStr = pathEl.getAttribute('points');
+            const pairs = pointsStr.trim().split(/\s+/);
+            if (pairs.length > 2) {
+                d = `M ${pairs[0].replace(',', ' ')}`;
+                for (let i = 1; i < pairs.length; i++) {
+                    d += ` L ${pairs[i].replace(',', ' ')}`;
+                }
+                d += ' Z';
+            }
+        } else if (tagName === 'circle') {
+            const cx = parseFloat(pathEl.getAttribute('cx') || 0);
+            const cy = parseFloat(pathEl.getAttribute('cy') || 0);
+            const r = parseFloat(pathEl.getAttribute('r') || 0);
+            d = `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`;
+        } else if (tagName === 'rect') {
+            const rx = parseFloat(pathEl.getAttribute('x') || 0);
+            const ry = parseFloat(pathEl.getAttribute('y') || 0);
+            const w = parseFloat(pathEl.getAttribute('width') || 0);
+            const h = parseFloat(pathEl.getAttribute('height') || 0);
+            d = `M ${rx} ${ry} L ${rx + w} ${ry} L ${rx + w} ${ry + h} L ${rx} ${ry + h} Z`;
+        }
+        
+        if (d) {
+            loadCustomSvgPath(d);
+        } else {
+            alert("Unable to parse vector shape coordinates from SVG file.");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
 });
 
 // --- File Import (Picker & Drag/Drop) ---
@@ -935,4 +1375,6 @@ initDB(() => {
     // Initially hide settings panel after boot so the canvas looks pure right away
     settingsPanel.classList.add('hidden');
     syncCustomModeDropdown();
+    syncCustomShapeDropdown();
+    toggleShapeSelectorVisibility();
 });
