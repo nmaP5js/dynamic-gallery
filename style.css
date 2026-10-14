@@ -70,6 +70,9 @@ html, body {
     transform-style: preserve-3d;
     overflow: hidden;
     background-color: var(--color-bg);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 /* --- Collage Items --- */
@@ -432,6 +435,10 @@ input[type="range"]::-moz-range-track {
     font-size: 11px;
 }
 
+.custom-select select {
+    display: none;
+}
+
 .custom-select-trigger {
     padding-right: 30px;
     font-weight: 600;
@@ -609,36 +616,134 @@ body.drag-over #drop-hint {
     opacity: 1;
 }
 
+/* --- Mobile Floating Settings Button & Panel Header --- */
+#mobile-settings-btn {
+    display: none;
+}
+
+.panel-header {
+    display: none;
+}
+
 /* ==========================================
-   Mobile Responsive — Bottom Sheet Layout
+   Mobile & Tablet Responsive System
    ========================================== */
+@media (max-width: 768px) {
+    /* Show floating trigger button on touch screens */
+    #mobile-settings-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        bottom: max(20px, env(safe-area-inset-bottom, 20px));
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+        color: #111111;
+        cursor: pointer;
+        z-index: 9999;
+        transition: transform var(--transition-fast), opacity var(--transition-fast);
+        outline: none;
+    }
+
+    #mobile-settings-btn:active {
+        transform: scale(0.92);
+    }
+
+    #mobile-settings-btn.panel-open {
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(0.8);
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding-bottom: 8px;
+        margin-bottom: 2px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .panel-title {
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+    }
+
+    #close-settings-btn {
+        background: transparent;
+        border: none;
+        font-size: 16px;
+        line-height: 1;
+        color: var(--color-text-muted);
+        cursor: pointer;
+        padding: 6px;
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    #close-settings-btn:hover,
+    #close-settings-btn:active {
+        background: rgba(0, 0, 0, 0.06);
+        color: var(--color-text);
+    }
+}
+
 @media (max-width: 480px) {
     #settings-panel {
         left: 10px;
         right: 10px;
-        bottom: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom, 10px));
         width: auto;
         max-width: calc(100% - 20px);
         border-radius: var(--radius-lg);
         border: 1px solid var(--color-border);
         margin: 0;
-        padding: 14px 16px;
+        padding: 12px 16px;
+        padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
         gap: 8px;
         font-size: 11px;
-        box-shadow: var(--shadow-lg);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
         flex-direction: column;
         align-items: stretch;
-        transform: scale(1);
-        max-height: 75vh;
+        transform: translateY(0) scale(1);
+        max-height: 78vh;
         overflow-y: auto;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
+        z-index: 10000;
+        pointer-events: all;
+    }
+
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateY(24px) scale(0.96);
+        pointer-events: none !important;
+        filter: blur(4px);
     }
 
     #settings-panel .settings-section {
         gap: 4px;
         border-right: none !important;
         padding-right: 0 !important;
+        width: 100%;
     }
 
     #settings-panel .parameters-group {
@@ -646,7 +751,6 @@ body.drag-over #drop-hint {
         gap: 8px;
     }
 
-    #settings-panel select,
     #settings-panel .custom-select,
     #settings-panel .upload-btn,
     #settings-panel input[type="range"],
@@ -654,13 +758,28 @@ body.drag-over #drop-hint {
         width: 100% !important;
     }
 
+    /* Native select overlay over custom trigger for 100% reliable mobile OS pickers */
+    #settings-panel .custom-select select {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        z-index: 10;
+        cursor: pointer;
+        -webkit-appearance: menulist-button;
+        border: none;
+        background: transparent;
+        font-size: 16px; /* Prevents auto-zoom on iOS Safari */
+    }
+
     #settings-panel .custom-select-options {
-        width: 100% !important;
-        box-sizing: border-box;
+        display: none !important;
     }
 
     /* Larger touch targets on mobile */
-    #settings-panel select,
     #settings-panel .custom-select-trigger,
     #settings-panel .upload-btn,
     #settings-panel input[type="url"],
@@ -670,12 +789,31 @@ body.drag-over #drop-hint {
         min-height: 44px; /* Apple HIG minimum touch target */
     }
 
-    #settings-panel .custom-option {
-        padding: 10px 12px;
-        min-height: 40px;
+    #settings-panel .upload-btn {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
+    }
+
+    #settings-panel .url-input-group input {
+        font-size: 16px; /* Prevents iOS auto-zoom on focus */
+    }
+
+    /* Responsive grid for actions to prevent overflow */
+    #settings-panel .actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    #settings-panel .actions button {
+        width: 100%;
+        white-space: nowrap;
+    }
+
+    #settings-panel .actions button#control-export {
+        grid-column: span 2;
     }
 
     /* Larger slider thumb for touch */
@@ -706,21 +844,15 @@ body.drag-over #drop-hint {
         margin-top: 0;
     }
 
-    #settings-panel.hidden {
-        opacity: 0;
-        transform: translateY(20px) scale(0.96);
-        filter: blur(4px);
-    }
-
     /* Swipe hint bar at top of panel */
     #settings-panel::before {
         content: '';
         display: block;
         width: 36px;
         height: 4px;
-        background: rgba(0, 0, 0, 0.1);
+        background: rgba(0, 0, 0, 0.12);
         border-radius: 2px;
-        margin: 0 auto 8px;
+        margin: 0 auto 6px;
         flex-shrink: 0;
     }
 }
@@ -728,9 +860,46 @@ body.drag-over #drop-hint {
 /* Tablet breakpoint */
 @media (min-width: 481px) and (max-width: 768px) {
     #settings-panel {
-        padding: 12px 18px;
-        gap: 14px;
-        max-width: 92vw;
+        left: 20px;
+        right: 20px;
+        bottom: max(16px, env(safe-area-inset-bottom, 16px));
+        padding: 14px 20px;
+        gap: 12px;
+        max-width: calc(100% - 40px);
+        width: auto;
+        transform: translateY(0) scale(1);
+        flex-direction: column;
+        align-items: stretch;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    #settings-panel.hidden {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+        pointer-events: none !important;
+    }
+
+    #settings-panel .settings-section {
+        border-right: none !important;
+        padding-right: 0 !important;
+    }
+
+    #settings-panel .custom-select select {
+        display: block !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        z-index: 10;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    #settings-panel .custom-select-options {
+        display: none !important;
     }
 
     #settings-panel select,
@@ -738,7 +907,17 @@ body.drag-over #drop-hint {
     #settings-panel .upload-btn,
     #settings-panel input[type="url"],
     #settings-panel button {
-        min-height: 38px;
+        min-height: 40px;
+    }
+
+    #settings-panel .actions {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    #settings-panel .actions button#control-export {
+        grid-column: span 2;
     }
 }
 

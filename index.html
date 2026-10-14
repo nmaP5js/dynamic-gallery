@@ -26,28 +26,48 @@
     <!-- Startup instructions hint in the center -->
     <div id="intro-hint" aria-live="polite">
         Press ESC or Double-Click to configure<br>
-        <span class="mobile-hint">Swipe up or tap screen on mobile to open settings</span>
+        <span class="mobile-hint">Tap screen or gear icon to open settings</span>
     </div>
 
-    <!-- Settings control panel (toggled via ESC, Double Click, or swipe-up) -->
+    <!-- Floating settings trigger button for mobile/touch -->
+    <button id="mobile-settings-btn" type="button" aria-label="Open settings">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"></line>
+            <line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line>
+            <line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line>
+            <line x1="9" y1="8" x2="15" y2="8"></line>
+            <line x1="17" y1="16" x2="23" y2="16"></line>
+        </svg>
+    </button>
+
+    <!-- Settings control panel (toggled via ESC, Double Click, tap, or mobile gear) -->
     <aside id="settings-panel" class="hidden" aria-label="Settings Panel" role="complementary">
+        <div class="panel-header">
+            <span class="panel-title">Settings</span>
+            <button id="close-settings-btn" type="button" aria-label="Close settings">✕</button>
+        </div>
+
         <div class="settings-section">
             <label for="control-mode">Mode</label>
-            <select id="control-mode" style="display: none;">
-                <option value="drift" selected>3D Drift (Floating)</option>
-                <option value="orbit">Orbit (3D Circular)</option>
-                <option value="orbit2d">Orbit (2D Circular)</option>
-                <option value="columns">Columns (2D Vertical)</option>
-                <option value="rows">Rows (2D Horizontal)</option>
-                <option value="tunnel">Zoom (3D Tunnel)</option>
-                <option value="assemble">Assemble (Drift/Grid Cycle)</option>
-                <option value="grid">Grid Flow (2D Scrolling)</option>
-                <option value="cinematic">Cinematic (Diagonal Sweep)</option>
-                <option value="vortex">Vortex (3D Spiral)</option>
-                <option value="pendulum">Pendulum (Gravity Sway)</option>
-                <option value="shape">Shape Flow (Dessin/Forme)</option>
-            </select>
             <div class="custom-select" id="custom-mode-select">
+                <select id="control-mode" aria-label="Animation Mode">
+                    <option value="drift" selected>3D Drift (Floating)</option>
+                    <option value="orbit">Orbit (3D Circular)</option>
+                    <option value="orbit2d">Orbit (2D Circular)</option>
+                    <option value="columns">Columns (2D Vertical)</option>
+                    <option value="rows">Rows (2D Horizontal)</option>
+                    <option value="tunnel">Zoom (3D Tunnel)</option>
+                    <option value="assemble">Assemble (Drift/Grid Cycle)</option>
+                    <option value="grid">Grid Flow (2D Scrolling)</option>
+                    <option value="cinematic">Cinematic (Diagonal Sweep)</option>
+                    <option value="vortex">Vortex (3D Spiral)</option>
+                    <option value="pendulum">Pendulum (Gravity Sway)</option>
+                    <option value="shape">Shape Flow (Dessin/Forme)</option>
+                </select>
                 <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">3D Drift (Floating)</div>
                 <div class="custom-select-options" role="listbox">
                     <div class="custom-option selected" data-value="drift" role="option">3D Drift (Floating)</div>
@@ -69,14 +89,14 @@
         <!-- Hidden Shape Selector Section (toggled dynamically in JS) -->
         <div class="settings-section" id="shape-selector-section" style="display: none;">
             <label for="control-shape">Shape</label>
-            <select id="control-shape" style="display: none;">
-                <option value="heart" selected>Heart (Cœur)</option>
-                <option value="star">Star (Étoile)</option>
-                <option value="infinity">Infinity (Infini)</option>
-                <option value="draw">Draw Shape</option>
-                <option value="upload">Upload SVG</option>
-            </select>
             <div class="custom-select" id="custom-shape-select">
+                <select id="control-shape" aria-label="Shape Selection">
+                    <option value="heart" selected>Heart (Cœur)</option>
+                    <option value="star">Star (Étoile)</option>
+                    <option value="infinity">Infinity (Infini)</option>
+                    <option value="draw">Draw Shape</option>
+                    <option value="upload">Upload SVG</option>
+                </select>
                 <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">Heart (Cœur)</div>
                 <div class="custom-select-options" role="listbox">
                     <div class="custom-option selected" data-value="heart" role="option">Heart (Cœur)</div>

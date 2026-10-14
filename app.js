@@ -99,7 +99,9 @@ const DOM = {
     cancelDrawingBtn:   document.getElementById('cancel-drawing-btn'),
     shapeOverlay:       document.getElementById('shape-overlay'),
     shapePath:          document.getElementById('shape-path'),
-    introHint:          document.getElementById('intro-hint')
+    introHint:          document.getElementById('intro-hint'),
+    mobileSettingsBtn:  document.getElementById('mobile-settings-btn'),
+    closeSettingsBtn:   document.getElementById('close-settings-btn')
 };
 
 
@@ -924,6 +926,9 @@ function exportCollageAsImage() {
 function toggleSettings() {
     DOM.settingsPanel.classList.toggle('hidden');
     hideIntroHint();
+    if (DOM.mobileSettingsBtn) {
+        DOM.mobileSettingsBtn.classList.toggle('panel-open', !DOM.settingsPanel.classList.contains('hidden'));
+    }
 }
 
 /** Fade out and remove the intro hint */
@@ -941,6 +946,23 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
+// --- Close button on mobile panel ---
+if (DOM.closeSettingsBtn) {
+    DOM.closeSettingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        DOM.settingsPanel.classList.add('hidden');
+        if (DOM.mobileSettingsBtn) DOM.mobileSettingsBtn.classList.remove('panel-open');
+    });
+}
+
+// --- Floating mobile settings button ---
+if (DOM.mobileSettingsBtn) {
+    DOM.mobileSettingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSettings();
+    });
+}
+
 // --- Double-click toggle on background ---
 DOM.artboard.addEventListener('dblclick', (e) => {
     if (!DOM.settingsPanel.contains(e.target)) {
@@ -948,7 +970,33 @@ DOM.artboard.addEventListener('dblclick', (e) => {
     }
 });
 
-// --- Single tap/click toggle on background ---
+// --- Reliable tap / touch toggle on background ---
+let artboardTouchStartX = 0;
+let artboardTouchStartY = 0;
+let artboardTouchStartTime = 0;
+
+DOM.artboard.addEventListener('touchstart', (e) => {
+    artboardTouchStartX = e.touches[0].clientX;
+    artboardTouchStartY = e.touches[0].clientY;
+    artboardTouchStartTime = Date.now();
+}, { passive: true });
+
+DOM.artboard.addEventListener('touchend', (e) => {
+    if (artboardTouchStartTime === 0) return;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dist = Math.hypot(endX - artboardTouchStartX, endY - artboardTouchStartY);
+    const duration = Date.now() - artboardTouchStartTime;
+    artboardTouchStartTime = 0;
+
+    // Clean tap on background (< 12px movement, < 300ms duration)
+    if (dist < 12 && duration < 300) {
+        if (!DOM.settingsPanel.contains(e.target) && (!DOM.mobileSettingsBtn || !DOM.mobileSettingsBtn.contains(e.target))) {
+            toggleSettings();
+        }
+    }
+}, { passive: true });
+
 DOM.artboard.addEventListener('click', (e) => {
     if (e.target === DOM.artboard) {
         toggleSettings();
@@ -1356,34 +1404,40 @@ window.addEventListener('drop', (e) => {
 
 
 // ============================================================
-//  SECTION 12 — Mobile Touch Gesture (Swipe Up to Open Settings)
+//  SECTION 12 — Mobile Touch Gestures (Swipe Up / Down)
 // ============================================================
 
-let touchStartY = 0;
-let touchStartTime = 0;
+let gestureStartY = 0;
+let gestureStartTime = 0;
 
 document.addEventListener('touchstart', (e) => {
-    // Only track swipes starting from the bottom 15% of the screen
-    if (e.touches[0].clientY > window.innerHeight * 0.85) {
-        touchStartY = e.touches[0].clientY;
-        touchStartTime = Date.now();
-    }
+    gestureStartY = e.touches[0].clientY;
+    gestureStartTime = Date.now();
 }, { passive: true });
 
 document.addEventListener('touchend', (e) => {
-    if (touchStartY === 0) return;
+    if (gestureStartY === 0) return;
 
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaY = touchStartY - touchEndY;
-    const elapsed = Date.now() - touchStartTime;
+    const gestureEndY = e.changedTouches[0].clientY;
+    const deltaY = gestureStartY - gestureEndY;
+    const elapsed = Date.now() - gestureStartTime;
 
-    // Swipe up gesture: >60px distance, <400ms duration
-    if (deltaY > 60 && elapsed < 400 && DOM.settingsPanel.classList.contains('hidden')) {
-        DOM.settingsPanel.classList.remove('hidden');
-        hideIntroHint();
+    // Fast swipe gesture (distance > 50px, elapsed < 400ms)
+    if (Math.abs(deltaY) > 50 && elapsed < 400) {
+        // Swipe UP anywhere in lower half of screen: open panel
+        if (deltaY > 50 && DOM.settingsPanel.classList.contains('hidden') && gestureStartY > window.innerHeight * 0.5) {
+            DOM.settingsPanel.classList.remove('hidden');
+            hideIntroHint();
+            if (DOM.mobileSettingsBtn) DOM.mobileSettingsBtn.classList.add('panel-open');
+        }
+        // Swipe DOWN starting from top half: close panel
+        else if (deltaY < -50 && !DOM.settingsPanel.classList.contains('hidden') && gestureStartY < window.innerHeight * 0.45) {
+            DOM.settingsPanel.classList.add('hidden');
+            if (DOM.mobileSettingsBtn) DOM.mobileSettingsBtn.classList.remove('panel-open');
+        }
     }
 
-    touchStartY = 0;
+    gestureStartY = 0;
 }, { passive: true });
 
 
@@ -1395,6 +1449,7 @@ initDB(() => {
     loadMediaFromDB();
     animate();
     DOM.settingsPanel.classList.add('hidden');
+    if (DOM.mobileSettingsBtn) DOM.mobileSettingsBtn.classList.remove('panel-open');
     syncCustomModeDropdown();
     syncCustomShapeDropdown();
     toggleShapeSelectorVisibility();
