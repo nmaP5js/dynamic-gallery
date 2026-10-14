@@ -2,31 +2,35 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <meta name="description" content="A minimalist dynamic art collage display for floating images and motion compositions.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Dynamic Art Collage — Interactive Lookbook Tool</title>
+    <meta name="description" content="A minimalist dynamic art collage display for floating images and motion compositions. Drop images, choose from 12 animation modes, and export high-res PNGs.">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="color-scheme" content="light">
     <link rel="stylesheet" href="style.css">
+    <!-- Preconnect for faster font loading -->
+    <link rel="preconnect" href="https://fonts.cdnfonts.com" crossorigin>
 </head>
 <body>
     <!-- Main canvas container for floating items -->
-    <div id="artboard" role="main"></div>
+    <div id="artboard" role="main" aria-label="Art collage canvas"></div>
 
     <!-- SVG overlay for shape outline path -->
-    <svg id="shape-overlay">
+    <svg id="shape-overlay" aria-hidden="true">
         <path id="shape-path" fill="none" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.2" stroke-dasharray="4,6" />
     </svg>
 
     <!-- Hidden drop-zone overlay hint -->
-    <div id="drop-hint">Drop images here</div>
+    <div id="drop-hint" aria-hidden="true">Drop images here</div>
 
     <!-- Startup instructions hint in the center -->
-    <div id="intro-hint">
+    <div id="intro-hint" aria-live="polite">
         Press ESC or Double-Click to configure<br>
-        <span class="mobile-hint">Tap screen on mobile to open settings</span>
+        <span class="mobile-hint">Swipe up or tap screen on mobile to open settings</span>
     </div>
 
-    <!-- Ultra-minimalist settings control panel (toggled via ESC or Double Click) -->
-    <div id="settings-panel" class="hidden" aria-label="Settings Panel">
+    <!-- Settings control panel (toggled via ESC, Double Click, or swipe-up) -->
+    <aside id="settings-panel" class="hidden" aria-label="Settings Panel" role="complementary">
         <div class="settings-section">
             <label for="control-mode">Mode</label>
             <select id="control-mode" style="display: none;">
@@ -44,20 +48,20 @@
                 <option value="shape">Shape Flow (Dessin/Forme)</option>
             </select>
             <div class="custom-select" id="custom-mode-select">
-                <div class="custom-select-trigger">3D Drift (Floating)</div>
-                <div class="custom-select-options">
-                    <div class="custom-option selected" data-value="drift">3D Drift (Floating)</div>
-                    <div class="custom-option" data-value="orbit">Orbit (3D Circular)</div>
-                    <div class="custom-option" data-value="orbit2d">Orbit (2D Circular)</div>
-                    <div class="custom-option" data-value="columns">Columns (2D Vertical)</div>
-                    <div class="custom-option" data-value="rows">Rows (2D Horizontal)</div>
-                    <div class="custom-option" data-value="tunnel">Zoom (3D Tunnel)</div>
-                    <div class="custom-option" data-value="assemble">Assemble (Drift/Grid Cycle)</div>
-                    <div class="custom-option" data-value="grid">Grid Flow (2D Scrolling)</div>
-                    <div class="custom-option" data-value="cinematic">Cinematic (Diagonal Sweep)</div>
-                    <div class="custom-option" data-value="vortex">Vortex (3D Spiral)</div>
-                    <div class="custom-option" data-value="pendulum">Pendulum (Gravity Sway)</div>
-                    <div class="custom-option" data-value="shape">Shape Flow (Dessin/Forme)</div>
+                <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">3D Drift (Floating)</div>
+                <div class="custom-select-options" role="listbox">
+                    <div class="custom-option selected" data-value="drift" role="option">3D Drift (Floating)</div>
+                    <div class="custom-option" data-value="orbit" role="option">Orbit (3D Circular)</div>
+                    <div class="custom-option" data-value="orbit2d" role="option">Orbit (2D Circular)</div>
+                    <div class="custom-option" data-value="columns" role="option">Columns (2D Vertical)</div>
+                    <div class="custom-option" data-value="rows" role="option">Rows (2D Horizontal)</div>
+                    <div class="custom-option" data-value="tunnel" role="option">Zoom (3D Tunnel)</div>
+                    <div class="custom-option" data-value="assemble" role="option">Assemble (Drift/Grid Cycle)</div>
+                    <div class="custom-option" data-value="grid" role="option">Grid Flow (2D Scrolling)</div>
+                    <div class="custom-option" data-value="cinematic" role="option">Cinematic (Diagonal Sweep)</div>
+                    <div class="custom-option" data-value="vortex" role="option">Vortex (3D Spiral)</div>
+                    <div class="custom-option" data-value="pendulum" role="option">Pendulum (Gravity Sway)</div>
+                    <div class="custom-option" data-value="shape" role="option">Shape Flow (Dessin/Forme)</div>
                 </div>
             </div>
         </div>
@@ -73,13 +77,13 @@
                 <option value="upload">Upload SVG</option>
             </select>
             <div class="custom-select" id="custom-shape-select">
-                <div class="custom-select-trigger">Heart (Cœur)</div>
-                <div class="custom-select-options">
-                    <div class="custom-option selected" data-value="heart">Heart (Cœur)</div>
-                    <div class="custom-option" data-value="star">Star (Étoile)</div>
-                    <div class="custom-option" data-value="infinity">Infinity (Infini)</div>
-                    <div class="custom-option" data-value="draw">* Draw Shape (Dessiner...)</div>
-                    <div class="custom-option" data-value="upload">* Upload SVG (Importer SVG...)</div>
+                <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">Heart (Cœur)</div>
+                <div class="custom-select-options" role="listbox">
+                    <div class="custom-option selected" data-value="heart" role="option">Heart (Cœur)</div>
+                    <div class="custom-option" data-value="star" role="option">Star (Étoile)</div>
+                    <div class="custom-option" data-value="infinity" role="option">Infinity (Infini)</div>
+                    <div class="custom-option" data-value="draw" role="option">* Draw Shape (Dessiner...)</div>
+                    <div class="custom-option" data-value="upload" role="option">* Upload SVG (Importer SVG...)</div>
                 </div>
             </div>
             <input type="file" id="control-shape-upload" accept=".svg" style="display: none;">
@@ -99,7 +103,6 @@
                 <input type="range" id="control-spread" min="0.1" max="2" step="0.05" value="1.0">
             </div>
         </div>
-
 
         <div class="settings-section">
             <span class="settings-label">Add Media</span>
@@ -126,10 +129,10 @@
             <p>Press <strong>ESC</strong> or <strong>Double-Click</strong> to hide.</p>
             <p class="credit">Made by Nicolas Marie-Angélique</p>
         </div>
-    </div>
+    </aside>
 
     <!-- Fullscreen Drawing Overlay for Custom Shape -->
-    <div id="drawing-overlay" style="display: none;">
+    <div id="drawing-overlay" style="display: none;" role="dialog" aria-label="Draw custom shape">
         <div class="drawing-instruction">Draw a closed shape outline with mouse or finger...</div>
         <canvas id="drawing-canvas"></canvas>
         <button id="cancel-drawing-btn" type="button">Cancel</button>

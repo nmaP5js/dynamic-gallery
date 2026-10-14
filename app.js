@@ -1,19 +1,52 @@
-// State Variables
+/**
+ * Dynamic Art Collage — Refactored Application
+ * 
+ * Architecture:
+ *   - Config & State management
+ *   - Database layer (IndexedDB)
+ *   - Media element management
+ *   - Animation engine (optimized RAF loop)
+ *   - UI controllers & event bindings
+ *   - File import handlers
+ *   - Drawing overlay
+ *   - Boot sequence
+ */
+
+// ============================================================
+//  SECTION 1 — Configuration & State
+// ============================================================
+
+/** @type {Array<MediaItem>} All active collage items */
 let mediaItems = [];
+
+/** @type {number|null} Current animation frame request ID */
 let animationFrameId = null;
+
+/** @type {number} Continuous scroll offset for scrolling modes */
 let scrollOffset = 0;
 
+/** Pre-cached track counts — updated once on distribute, not every frame */
+const trackCounts = {
+    left: 0, right: 0,
+    top: 0, bottom: 0,
+    col0: 0, col1: 0, col2: 0
+};
+
+/** Linear interpolation utility */
 const lerp = (a, b, t) => a + (b - a) * t;
 
-// IndexedDB persistence settings
+/** Clamp utility */
+const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+// IndexedDB settings
 const DB_NAME = 'DynamicCollageDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'media';
 let db = null;
 
-// Config state linked to UI controls
+/** Runtime configuration linked to UI controls */
 const config = {
-    mode: 'drift', // 'orbit' or 'drift'
+    mode: 'drift',
     speed: 0.5,
     scale: 1.0,
     spread: 1.0,
@@ -21,750 +54,733 @@ const config = {
     customShapePoints: null
 };
 
-// DOM Elements
-const artboard = document.getElementById('artboard');
-const settingsPanel = document.getElementById('settings-panel');
-const controlMode = document.getElementById('control-mode');
-const controlSpeed = document.getElementById('control-speed');
-const controlScale = document.getElementById('control-scale');
-const controlSpread = document.getElementById('control-spread');
-const controlUpload = document.getElementById('control-upload');
-const controlClear = document.getElementById('control-clear');
-const controlReset = document.getElementById('control-reset');
-const controlExport = document.getElementById('control-export');
-const controlUrlInput = document.getElementById('control-url-input');
-const controlUrlSubmit = document.getElementById('control-url-submit');
-
-// New Shape selector and drawing elements
-const controlShape = document.getElementById('control-shape');
-const shapeSelectorSection = document.getElementById('shape-selector-section');
-const customShapeSelect = document.getElementById('custom-shape-select');
-const controlShapeUpload = document.getElementById('control-shape-upload');
-
-const drawingOverlay = document.getElementById('drawing-overlay');
-const drawingCanvas = document.getElementById('drawing-canvas');
-const cancelDrawingBtn = document.getElementById('cancel-drawing-btn');
+/** Animation constants — extracted for clarity */
+const ANIM = {
+    DRIFT_Z_MIN: -400,
+    DRIFT_Z_MAX: 200,
+    TUNNEL_Z_MIN: -2500,
+    TUNNEL_Z_MAX: 500,
+    VORTEX_Z_MIN: -1200,
+    VORTEX_Z_MAX: 200,
+    REFERENCE_SIZE: 340,
+    GRID_COL_SPACING: 310,
+    GRID_ROW_SPACING: 410,
+    ASSEMBLE_CYCLE: 12,   // seconds
+    ASSEMBLE_DRIFT: 7,    // drift phase end
+    ASSEMBLE_GRID_START: 8,
+    ASSEMBLE_GRID_END: 11
+};
 
 
-// --- Shape Flow Math & Custom Shape Operations ---
+// ============================================================
+//  SECTION 2 — DOM References (cached once)
+// ============================================================
+
+const DOM = {
+    artboard:           document.getElementById('artboard'),
+    settingsPanel:      document.getElementById('settings-panel'),
+    controlMode:        document.getElementById('control-mode'),
+    controlSpeed:       document.getElementById('control-speed'),
+    controlScale:       document.getElementById('control-scale'),
+    controlSpread:      document.getElementById('control-spread'),
+    controlUpload:      document.getElementById('control-upload'),
+    controlClear:       document.getElementById('control-clear'),
+    controlReset:       document.getElementById('control-reset'),
+    controlExport:      document.getElementById('control-export'),
+    controlUrlInput:    document.getElementById('control-url-input'),
+    controlUrlSubmit:   document.getElementById('control-url-submit'),
+    controlShape:       document.getElementById('control-shape'),
+    shapeSelectorSection: document.getElementById('shape-selector-section'),
+    customModeSelect:   document.getElementById('custom-mode-select'),
+    customShapeSelect:  document.getElementById('custom-shape-select'),
+    controlShapeUpload: document.getElementById('control-shape-upload'),
+    drawingOverlay:     document.getElementById('drawing-overlay'),
+    drawingCanvas:      document.getElementById('drawing-canvas'),
+    cancelDrawingBtn:   document.getElementById('cancel-drawing-btn'),
+    shapeOverlay:       document.getElementById('shape-overlay'),
+    shapePath:          document.getElementById('shape-path'),
+    introHint:          document.getElementById('intro-hint')
+};
+
+
+// ============================================================
+//  SECTION 3 — Shape Math & Custom Shape Operations
+// ============================================================
+
 let isDrawing = false;
 let drawingPoints = [];
 let drawingCtx = null;
 
+/**
+ * Compute (x, y) coordinates on a parametric shape curve.
+ * @param {string} shapeName - Shape identifier
+ * @param {number} t - Parametric angle (0 to 2π)
+ * @param {number} vw - Viewport width
+ * @param {number} vh - Viewport height
+ * @returns {{x: number, y: number}}
+ */
 function getShapeCoordinates(shapeName, t, vw, vh) {
     const baseSize = Math.min(vw, vh) * 0.35 * config.spread;
     let x = 0, y = 0;
-    
+
     switch (shapeName) {
-        case 'heart':
-            // Parametric Heart curve
+        case 'heart': {
             const hx = 16 * Math.pow(Math.sin(t), 3);
             const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
             x = (hx / 16) * baseSize;
-            // Align visually and slightly compress Y for aesthetics
             y = (hy / 16) * baseSize * 0.95;
             break;
-            
-        case 'star':
-            // 5-pointed star polar curve (smooth lobes)
+        }
+        case 'star': {
             const r = baseSize * (0.62 + 0.38 * Math.cos(5 * t));
-            x = r * Math.sin(t); // rotate 90 deg so tip points straight up
+            x = r * Math.sin(t);
             y = -r * Math.cos(t);
             break;
-            
-        case 'infinity':
-            // Lemniscate of Bernoulli (figure-8)
+        }
+        case 'infinity': {
             const denom = 1 + Math.pow(Math.sin(t), 2);
             x = (baseSize * 1.25 * Math.cos(t)) / denom;
             y = (baseSize * 1.25 * Math.sin(t) * Math.cos(t)) / denom;
             break;
-            
-        case 'custom':
+        }
+        case 'custom': {
             if (config.customShapePoints && config.customShapePoints.length > 0) {
-                // Map continuous t (0 to 2pi) to normalized coordinates array
                 const percent = ((t % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / (Math.PI * 2);
                 const idx = Math.floor(percent * config.customShapePoints.length);
                 const pt = config.customShapePoints[idx % config.customShapePoints.length];
-                
-                // Scale normalized coordinate (ranges -0.5 to 0.5) to viewport bounds
                 const customBase = Math.min(vw, vh) * 0.75 * config.spread;
                 x = pt.x * customBase;
                 y = pt.y * customBase;
             }
             break;
-            
-        default:
+        }
+        default: {
             x = baseSize * Math.cos(t);
             y = baseSize * Math.sin(t);
             break;
+        }
     }
-    
+
     return { x, y };
 }
 
+/** Update the SVG overlay path to visualize the current shape outline */
 function updateShapeOverlayPath() {
-    const overlay = document.getElementById('shape-overlay');
-    const pathEl = document.getElementById('shape-path');
-    if (!overlay || !pathEl) return;
-    
+    if (!DOM.shapeOverlay || !DOM.shapePath) return;
+
     if (config.mode !== 'shape') {
-        overlay.style.display = 'none';
+        DOM.shapeOverlay.style.display = 'none';
         return;
     }
-    
-    overlay.style.display = 'block';
-    
+
+    DOM.shapeOverlay.style.display = 'block';
+
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const cx = vw / 2;
     const cy = vh / 2;
-    
-    const points = [];
-    const numPoints = 150; // High resolution path representation
-    
+    const numPoints = 150;
+    const points = new Array(numPoints);
+
     for (let i = 0; i < numPoints; i++) {
         const t = (i / numPoints) * Math.PI * 2;
         const pt = getShapeCoordinates(config.shape, t, vw, vh);
-        points.push(`${cx + pt.x},${cy + pt.y}`);
+        points[i] = `${cx + pt.x},${cy + pt.y}`;
     }
-    
-    pathEl.setAttribute('d', 'M ' + points.join(' L ') + ' Z');
+
+    DOM.shapePath.setAttribute('d', 'M ' + points.join(' L ') + ' Z');
 }
 
+/** Parse an SVG path `d` attribute into normalized coordinate points */
 function loadCustomSvgPath(dAttribute) {
-    const overlay = document.getElementById('shape-overlay');
-    if (!overlay) return;
-    
-    // Create temporary path element inside overlay to measure geometry
+    if (!DOM.shapeOverlay) return;
+
     const tempPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
     tempPath.setAttribute("d", dAttribute);
-    overlay.appendChild(tempPath);
-    
+    DOM.shapeOverlay.appendChild(tempPath);
+
     const bbox = tempPath.getBBox();
     const totalLength = tempPath.getTotalLength();
-    
+
     if (totalLength === 0 || bbox.width === 0 || bbox.height === 0) {
-        overlay.removeChild(tempPath);
-        return; // invalid path geometry
+        DOM.shapeOverlay.removeChild(tempPath);
+        return;
     }
-    
-    // Sample 200 coordinates along the custom vector path
+
     const numSamples = 200;
-    const sampledPoints = [];
-    
+    const sampledPoints = new Array(numSamples);
+    const maxDim = Math.max(bbox.width, bbox.height);
+
     for (let i = 0; i < numSamples; i++) {
         const dist = (i / numSamples) * totalLength;
         const pt = tempPath.getPointAtLength(dist);
-        
-        // Center coordinates and normalize to -0.5 ... 0.5 scale
-        const normX = (pt.x - bbox.x - bbox.width / 2) / Math.max(bbox.width, bbox.height);
-        const normY = (pt.y - bbox.y - bbox.height / 2) / Math.max(bbox.width, bbox.height);
-        
-        sampledPoints.push({ x: normX, y: normY });
+        sampledPoints[i] = {
+            x: (pt.x - bbox.x - bbox.width / 2) / maxDim,
+            y: (pt.y - bbox.y - bbox.height / 2) / maxDim
+        };
     }
-    
-    overlay.removeChild(tempPath);
-    
-    // Save normalized coordinates
+
+    DOM.shapeOverlay.removeChild(tempPath);
+
     config.customShapePoints = sampledPoints;
     config.shape = 'custom';
-    controlShape.value = 'custom';
-    
-    // Dynamic Custom Option display injection
+    DOM.controlShape.value = 'custom';
+
     ensureCustomOptionInDropdown();
-    
-    // Reset shape animation variables for smooth transition
+
     mediaItems.forEach((item, idx) => {
         item.shapeAngle = (idx * 2 * Math.PI) / Math.max(1, mediaItems.length);
     });
-    
+
     updateShapeOverlayPath();
     syncCustomShapeDropdown();
 }
 
+/** Ensure the "Custom" option exists in both native and styled dropdowns */
 function ensureCustomOptionInDropdown() {
-    // Check if Custom option already exists in native select
-    let customOpt = Array.from(controlShape.options).find(opt => opt.value === 'custom');
+    // Native select
+    let customOpt = Array.from(DOM.controlShape.options).find(opt => opt.value === 'custom');
     if (!customOpt) {
         customOpt = document.createElement('option');
         customOpt.value = 'custom';
         customOpt.textContent = 'Custom (Perso)';
-        controlShape.appendChild(customOpt);
+        DOM.controlShape.appendChild(customOpt);
     }
     customOpt.selected = true;
-    
-    // Check if Custom option already exists in custom dropdown options list
-    const customOptionsList = customShapeSelect.querySelector('.custom-select-options');
+
+    // Custom styled dropdown
+    const customOptionsList = DOM.customShapeSelect.querySelector('.custom-select-options');
     let customDivOpt = customOptionsList.querySelector('.custom-option[data-value="custom"]');
     if (!customDivOpt) {
         customDivOpt = document.createElement('div');
         customDivOpt.className = 'custom-option';
         customDivOpt.setAttribute('data-value', 'custom');
         customDivOpt.textContent = 'Custom (Perso)';
-        
-        // Insert custom option before Draw option to keep special controls at the bottom
+
         const drawOpt = customOptionsList.querySelector('.custom-option[data-value="draw"]');
         customOptionsList.insertBefore(customDivOpt, drawOpt);
-        
-        // Add click listener to newly added custom option
-        customDivOpt.addEventListener('click', (e) => {
-            controlShape.value = 'custom';
-            controlShape.dispatchEvent(new Event('change'));
-            customShapeSelect.classList.remove('open');
+
+        customDivOpt.addEventListener('click', () => {
+            DOM.controlShape.value = 'custom';
+            DOM.controlShape.dispatchEvent(new Event('change'));
+            DOM.customShapeSelect.classList.remove('open');
         });
     }
 }
 
+/** Show/hide the shape selector based on current mode */
 function toggleShapeSelectorVisibility() {
     if (config.mode === 'shape') {
-        shapeSelectorSection.style.display = 'flex';
+        DOM.shapeSelectorSection.style.display = 'flex';
         updateShapeOverlayPath();
     } else {
-        shapeSelectorSection.style.display = 'none';
-        const overlay = document.getElementById('shape-overlay');
-        if (overlay) overlay.style.display = 'none';
+        DOM.shapeSelectorSection.style.display = 'none';
+        if (DOM.shapeOverlay) DOM.shapeOverlay.style.display = 'none';
     }
 }
 
+
+// ============================================================
+//  SECTION 4 — Media Element Management
+// ============================================================
+
+/**
+ * Create a collage media element from an image source URL.
+ * @param {string} src - Image source (blob URL or HTTP URL)
+ * @returns {MediaItem} The created item state object
+ */
 function createMediaElement(src) {
     const container = document.createElement('div');
     container.className = 'collage-item';
-    
+
     const el = document.createElement('img');
     el.crossOrigin = "anonymous";
     el.src = src;
+
+    // Setup state object first so it's available in onload
+    const item = {
+        element: container,
+        media: el,
+        baseWidth: 280,
+        baseHeight: 380,
+        x: 0, y: 0, z: 0,
+        dx: (Math.random() - 0.5) * 2,
+        dy: (Math.random() - 0.5) * 2,
+        dz: (Math.random() - 0.5) * 1.5,
+        orbitAngle: 0,
+        orbitSpeedFactor: 0.8 + Math.random() * 0.4,
+        seed: Math.random() * 100,
+        noiseOffset: Math.random() * Math.PI * 2
+    };
+
     el.onload = () => {
         const aspect = el.naturalWidth / el.naturalHeight;
         setMediaDimensions(item, aspect);
     };
-    
+
     container.appendChild(el);
-    artboard.appendChild(container);
-    
-    // Setup state parameters for animation
-    const item = {
-        element: container,
-        media: el,
-        // Default sizes while loading
-        baseWidth: 280,
-        baseHeight: 380,
-        
-        // Position state
-        x: 0,
-        y: 0,
-        z: 0,
-        
-        // Drift Physics state (pixel velocities)
-        dx: (Math.random() - 0.5) * 2,
-        dy: (Math.random() - 0.5) * 2,
-        dz: (Math.random() - 0.5) * 1.5,
-        
-        // Orbit state
-        orbitAngle: 0,
-        orbitSpeedFactor: 0.8 + Math.random() * 0.4,
-        
-        // Random variance
-        seed: Math.random() * 100,
-        noiseOffset: Math.random() * Math.PI * 2
-    };
-    
-    // Set default styles while loading
+    DOM.artboard.appendChild(container);
+
+    // Default inline styles while loading
     container.style.width = '280px';
     container.style.height = '380px';
     container.style.marginLeft = '-140px';
     container.style.marginTop = '-190px';
-    
+
     mediaItems.push(item);
     distributeElements();
     return item;
 }
 
+/**
+ * Set proper dimensions based on the image's natural aspect ratio.
+ * @param {MediaItem} item
+ * @param {number} aspect - Width/height ratio
+ */
 function setMediaDimensions(item, aspect) {
     if (!aspect || isNaN(aspect)) return;
-    
-    let width = 280;
-    let height = 380;
-    
-    const referenceSize = 340; // Max bounding dimension
-    
+
+    let width, height;
+
     if (aspect > 1) {
-        // Landscape (horizontal)
-        width = referenceSize;
-        height = referenceSize / aspect;
+        width = ANIM.REFERENCE_SIZE;
+        height = ANIM.REFERENCE_SIZE / aspect;
     } else {
-        // Portrait or square (vertical)
-        height = referenceSize;
-        width = referenceSize * aspect;
+        height = ANIM.REFERENCE_SIZE;
+        width = ANIM.REFERENCE_SIZE * aspect;
     }
-    
+
     item.baseWidth = width;
     item.baseHeight = height;
-    
+
     item.element.style.width = `${width}px`;
     item.element.style.height = `${height}px`;
     item.element.style.marginLeft = `${-width / 2}px`;
     item.element.style.marginTop = `${-height / 2}px`;
-    
-    // Recalculate track spacing for 2D modes based on updated dimensions
+
     distributeElements();
 }
 
-// Distribute angles/positions when items change or mode swaps
+/**
+ * Distribute positions, track assignments, and grid targets for all items.
+ * Also pre-computes track counts for the animation loop.
+ */
 function distributeElements() {
     const n = mediaItems.length;
     if (n === 0) return;
-    
-    // Arrays to count items per track for standard modes
-    const leftItems = [];
-    const rightItems = [];
-    const topItems = [];
-    const bottomItems = [];
-    
-    // Arrays for the 3-column Grid Flow mode
-    const gridCols = [[], [], []];
-    
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Reset track counts
+    let leftCount = 0, rightCount = 0;
+    let topCount = 0, bottomCount = 0;
+    const gridCols = [0, 0, 0];
+
     // Grid geometry for Assemble mode
-    let cols = 3;
-    if (n <= 3) cols = n;
-    else if (n <= 6) cols = 3;
-    else cols = 4;
-    
+    let cols = n <= 3 ? n : (n <= 6 ? 3 : 4);
     const rows = Math.ceil(n / cols);
-    
-    // Spacing between grid cells
-    const colSpacing = 310;
-    const rowSpacing = 410;
-    const gridWidth = (cols - 1) * colSpacing;
-    const gridHeight = (rows - 1) * rowSpacing;
-    
+    const gridWidth = (cols - 1) * ANIM.GRID_COL_SPACING;
+    const gridHeight = (rows - 1) * ANIM.GRID_ROW_SPACING;
+
     mediaItems.forEach((item, i) => {
-        // Orbit starting angles distributed evenly around circle
+        // Orbit starting angles
         item.orbitAngle = (i * 2 * Math.PI) / n;
-        
+
+        // Mode-specific initial positioning
         if (config.mode === 'tunnel') {
-            // Space items evenly along the tunnel depth to prevent bunching (range: -2500 to 500)
-            item.z = -2500 + (i / n) * 3000;
-            item.x = (Math.random() - 0.5) * window.innerWidth * 0.6;
-            item.y = (Math.random() - 0.5) * window.innerHeight * 0.6;
+            item.z = ANIM.TUNNEL_Z_MIN + (i / n) * 3000;
+            item.x = (Math.random() - 0.5) * vw * 0.6;
+            item.y = (Math.random() - 0.5) * vh * 0.6;
         } else if (config.mode === 'cinematic') {
-            // Spaced evenly along the diagonal with randomized depth layers
             item.z = -200 + Math.random() * 300;
-            item.x = -window.innerWidth * 0.7 + (i / n) * window.innerWidth * 1.4;
-            item.y = window.innerHeight * 0.7 - (i / n) * window.innerHeight * 1.4;
+            item.x = -vw * 0.7 + (i / n) * vw * 1.4;
+            item.y = vh * 0.7 - (i / n) * vh * 1.4;
         } else if (config.mode === 'vortex') {
-            // Distribute radius and angles to make a spiral galaxy form on mode load
-            const maxRadius = Math.max(window.innerWidth, window.innerHeight) * 0.6;
+            const maxRadius = Math.max(vw, vh) * 0.6;
             item.vortexRadius = (i / n) * maxRadius;
             item.vortexAngle = (i * 2 * Math.PI) / n + Math.random() * 0.5;
-            item.z = -1200 + (item.vortexRadius / maxRadius) * 1400;
+            item.z = ANIM.VORTEX_Z_MIN + (item.vortexRadius / maxRadius) * 1400;
         } else if (config.mode === 'pendulum') {
-            // Distribute anchor points evenly along the screen width
-            item.anchorX = -window.innerWidth * 0.55 + (i / Math.max(1, n - 1)) * window.innerWidth * 1.1;
-            item.pendulumLength = window.innerHeight * (0.35 + 0.3 * Math.random());
+            item.anchorX = -vw * 0.55 + (i / Math.max(1, n - 1)) * vw * 1.1;
+            item.pendulumLength = vh * (0.35 + 0.3 * Math.random());
             item.pendulumPhase = Math.random() * Math.PI * 2;
-            item.pendulumMaxAngle = 0.15 + Math.random() * 0.15; // in radians
+            item.pendulumMaxAngle = 0.15 + Math.random() * 0.15;
         } else {
-            // Drift random initial positions in viewport
-            const rangeX = window.innerWidth * 0.6;
-            const rangeY = window.innerHeight * 0.6;
+            const rangeX = vw * 0.6;
+            const rangeY = vh * 0.6;
             if (item.x === 0 && item.y === 0) {
                 item.x = (Math.random() - 0.5) * rangeX;
                 item.y = (Math.random() - 0.5) * rangeY;
                 item.z = (Math.random() - 0.5) * 300;
             }
         }
-        
-        // Assign to Left / Right column tracks
+
+        // Column track assignments (Left/Right)
         if (i % 2 === 0) {
             item.columnTrack = 'left';
-            item.columnIndex = leftItems.length;
-            leftItems.push(item);
+            item.columnIndex = leftCount++;
         } else {
             item.columnTrack = 'right';
-            item.columnIndex = rightItems.length;
-            rightItems.push(item);
+            item.columnIndex = rightCount++;
         }
-        
-        // Assign to Top / Bottom row tracks
+
+        // Row track assignments (Top/Bottom)
         if (i % 2 === 0) {
             item.rowTrack = 'top';
-            item.rowIndex = topItems.length;
-            topItems.push(item);
+            item.rowIndex = topCount++;
         } else {
             item.rowTrack = 'bottom';
-            item.rowIndex = bottomItems.length;
-            bottomItems.push(item);
+            item.rowIndex = bottomCount++;
         }
-        
-        // Assign to 3-column Grid Flow tracks
+
+        // 3-column Grid Flow assignments
         const gridColIdx = i % 3;
         item.gridColTrack = gridColIdx;
-        item.gridColIndex = gridCols[gridColIdx].length;
-        gridCols[gridColIdx].push(item);
-        
-        // Target Coordinates for Assemble Mode grid layout
+        item.gridColIndex = gridCols[gridColIdx]++;
+
+        // Assemble mode grid targets
         const cIdx = i % cols;
         const rIdx = Math.floor(i / cols);
-        item.targetGridX = cIdx * colSpacing - gridWidth / 2;
-        item.targetGridY = rIdx * rowSpacing - gridHeight / 2;
+        item.targetGridX = cIdx * ANIM.GRID_COL_SPACING - gridWidth / 2;
+        item.targetGridY = rIdx * ANIM.GRID_ROW_SPACING - gridHeight / 2;
     });
+
+    // Cache track counts for the animation loop (avoids per-frame filter())
+    trackCounts.left = leftCount;
+    trackCounts.right = rightCount;
+    trackCounts.top = topCount;
+    trackCounts.bottom = bottomCount;
+    trackCounts.col0 = gridCols[0];
+    trackCounts.col1 = gridCols[1];
+    trackCounts.col2 = gridCols[2];
 }
 
+/** Remove all media items from the canvas */
 function clearAllMedia() {
     mediaItems.forEach(item => {
-        if (item.element) {
-            item.element.remove();
-        }
+        if (item.element) item.element.remove();
     });
     mediaItems = [];
 }
 
-// --- Animation Loop ---
+
+// ============================================================
+//  SECTION 5 — Animation Engine (Optimized RAF Loop)
+// ============================================================
+
+/**
+ * Main animation loop. Updates all item positions each frame.
+ * Performance optimizations:
+ *   - Track counts pre-cached (no per-frame filter/count)
+ *   - Minimal DOM writes (single transform + opacity per item)
+ *   - Constants extracted to avoid re-evaluation
+ */
 function animate() {
-    const time = performance.now() * 0.001; // Seconds elapsed
+    const time = performance.now() * 0.001;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    
-    // Increment continuous offset for scrolling modes
-    scrollOffset += 1.5 * config.speed;
-    
-    // Bounds for Drift bounding box
+    const mode = config.mode;
+    const speed = config.speed;
+    const scale = config.scale;
+    const spread = config.spread;
+
+    scrollOffset += 1.5 * speed;
+
+    // Drift bounds
     const marginX = vw * 0.35;
     const marginY = vh * 0.35;
-    const minZ = -400;
-    const maxZ = 200;
+    const minZ = ANIM.DRIFT_Z_MIN;
+    const maxZ = ANIM.DRIFT_Z_MAX;
 
-    // Count how many items in each partition for proper spacing calculations
-    const numLeft = mediaItems.filter(item => item.columnTrack === 'left').length;
-    const numRight = mediaItems.filter(item => item.columnTrack === 'right').length;
-    const numTop = mediaItems.filter(item => item.rowTrack === 'top').length;
-    const numBottom = mediaItems.filter(item => item.rowTrack === 'bottom').length;
-    const numCol0 = mediaItems.filter(item => item.gridColTrack === 0).length;
-    const numCol1 = mediaItems.filter(item => item.gridColTrack === 1).length;
-    const numCol2 = mediaItems.filter(item => item.gridColTrack === 2).length;
+    // Pre-read cached track counts
+    const numLeft = trackCounts.left;
+    const numRight = trackCounts.right;
+    const numTop = trackCounts.top;
+    const numBottom = trackCounts.bottom;
+    const numCol0 = trackCounts.col0;
+    const numCol1 = trackCounts.col1;
+    const numCol2 = trackCounts.col2;
 
-    mediaItems.forEach((item) => {
+    for (let idx = 0; idx < mediaItems.length; idx++) {
+        const item = mediaItems[idx];
         let x = 0, y = 0, z = 0;
-        
-        if (config.mode === 'orbit') {
-            // --- Mode 1: 3D Orbit ---
-            item.orbitAngle += 0.003 * config.speed * item.orbitSpeedFactor;
-            
-            const radiusX = (vw * 0.32) * config.spread;
-            const radiusZ = 300 * config.spread;
-            const radiusY = (vh * 0.1) * config.spread;
-            
-            x = Math.cos(item.orbitAngle) * radiusX;
-            z = Math.sin(item.orbitAngle) * radiusZ;
-            y = Math.sin(item.orbitAngle * 2 + item.noiseOffset) * radiusY + (Math.sin(item.seed) * vh * 0.1);
-            
-            item.x = x;
-            item.y = y;
-            item.z = z;
-        } else if (config.mode === 'orbit2d') {
-            // --- Mode 2: 2D Orbit ---
-            item.orbitAngle += 0.003 * config.speed * item.orbitSpeedFactor;
-            
-            const radiusX = (vw * 0.32) * config.spread;
-            const radiusY = (vh * 0.25) * config.spread;
-            
-            x = Math.cos(item.orbitAngle) * radiusX;
-            y = Math.sin(item.orbitAngle) * radiusY;
-            z = 0;
-            
-            item.x = x;
-            item.y = y;
-            item.z = z;
-        } else if (config.mode === 'drift') {
-            // --- Mode 3: 3D Drift ---
-            item.x += item.dx * config.speed;
-            item.y += item.dy * config.speed;
-            item.z += item.dz * config.speed;
-            
-            item.x += Math.sin(time + item.seed) * 0.2;
-            item.y += Math.cos(time + item.seed) * 0.2;
-            
-            if (item.x < -marginX) { item.x = -marginX; item.dx = Math.abs(item.dx); }
-            if (item.x > marginX) { item.x = marginX; item.dx = -Math.abs(item.dx); }
-            
-            if (item.y < -marginY) { item.y = -marginY; item.dy = Math.abs(item.dy); }
-            if (item.y > marginY) { item.y = marginY; item.dy = -Math.abs(item.dy); }
-            
-            if (item.z < minZ) { item.z = minZ; item.dz = Math.abs(item.dz); }
-            if (item.z > maxZ) { item.z = maxZ; item.dz = -Math.abs(item.dz); }
-            
-            x = item.x;
-            y = item.y;
-            z = item.z;
-        } else if (config.mode === 'columns') {
-            // --- Mode 4: 2D Columns (Left Down, Right Up) ---
-            const trackNum = item.columnTrack === 'left' ? numLeft : numRight;
-            
-            // vertical spacing (image height 380 + spacing)
-            const spacingY = Math.max(440, (vh + 380) / Math.max(1, trackNum));
-            const loopHeight = trackNum * spacingY;
-            
-            if (item.columnTrack === 'left') {
-                const yRaw = item.columnIndex * spacingY + scrollOffset;
+
+        switch (mode) {
+            case 'orbit': {
+                item.orbitAngle += 0.003 * speed * item.orbitSpeedFactor;
+                const radiusX = (vw * 0.32) * spread;
+                const radiusZ = 300 * spread;
+                const radiusY = (vh * 0.1) * spread;
+                x = Math.cos(item.orbitAngle) * radiusX;
+                z = Math.sin(item.orbitAngle) * radiusZ;
+                y = Math.sin(item.orbitAngle * 2 + item.noiseOffset) * radiusY + (Math.sin(item.seed) * vh * 0.1);
+                item.x = x; item.y = y; item.z = z;
+                break;
+            }
+            case 'orbit2d': {
+                item.orbitAngle += 0.003 * speed * item.orbitSpeedFactor;
+                const radiusX = (vw * 0.32) * spread;
+                const radiusY = (vh * 0.25) * spread;
+                x = Math.cos(item.orbitAngle) * radiusX;
+                y = Math.sin(item.orbitAngle) * radiusY;
+                z = 0;
+                item.x = x; item.y = y; item.z = z;
+                break;
+            }
+            case 'drift': {
+                item.x += item.dx * speed;
+                item.y += item.dy * speed;
+                item.z += item.dz * speed;
+                item.x += Math.sin(time + item.seed) * 0.2;
+                item.y += Math.cos(time + item.seed) * 0.2;
+
+                if (item.x < -marginX) { item.x = -marginX; item.dx = Math.abs(item.dx); }
+                if (item.x > marginX)  { item.x = marginX; item.dx = -Math.abs(item.dx); }
+                if (item.y < -marginY) { item.y = -marginY; item.dy = Math.abs(item.dy); }
+                if (item.y > marginY)  { item.y = marginY; item.dy = -Math.abs(item.dy); }
+                if (item.z < minZ)     { item.z = minZ; item.dz = Math.abs(item.dz); }
+                if (item.z > maxZ)     { item.z = maxZ; item.dz = -Math.abs(item.dz); }
+
+                x = item.x; y = item.y; z = item.z;
+                break;
+            }
+            case 'columns': {
+                const trackNum = item.columnTrack === 'left' ? numLeft : numRight;
+                const spacingY = Math.max(440, (vh + 380) / Math.max(1, trackNum));
+                const loopHeight = trackNum * spacingY;
+
+                if (item.columnTrack === 'left') {
+                    const yRaw = item.columnIndex * spacingY + scrollOffset;
+                    y = ((yRaw % loopHeight) + loopHeight) % loopHeight - (loopHeight / 2);
+                    x = -vw * 0.22 * spread;
+                } else {
+                    const yRaw = item.columnIndex * spacingY - scrollOffset;
+                    y = ((yRaw % loopHeight) + loopHeight) % loopHeight - (loopHeight / 2);
+                    x = vw * 0.22 * spread;
+                }
+                z = 0;
+                break;
+            }
+            case 'rows': {
+                const trackNum = item.rowTrack === 'top' ? numTop : numBottom;
+                const spacingX = Math.max(340, (vw + 280) / Math.max(1, trackNum));
+                const loopWidth = trackNum * spacingX;
+
+                if (item.rowTrack === 'top') {
+                    const xRaw = item.rowIndex * spacingX - scrollOffset;
+                    x = ((xRaw % loopWidth) + loopWidth) % loopWidth - (loopWidth / 2);
+                    y = -vh * 0.22 * spread;
+                } else {
+                    const xRaw = item.rowIndex * spacingX + scrollOffset;
+                    x = ((xRaw % loopWidth) + loopWidth) % loopWidth - (loopWidth / 2);
+                    y = vh * 0.22 * spread;
+                }
+                z = 0;
+                break;
+            }
+            case 'tunnel': {
+                item.z += 1.8 * speed;
+                if (item.z > 500) {
+                    item.z = ANIM.TUNNEL_Z_MIN;
+                    item.x = (Math.random() - 0.5) * vw * 0.6;
+                    item.y = (Math.random() - 0.5) * vh * 0.6;
+                }
+                x = item.x; y = item.y; z = item.z;
+                break;
+            }
+            case 'assemble': {
+                item.x += item.dx * speed;
+                item.y += item.dy * speed;
+                item.z += item.dz * speed;
+
+                if (item.x < -marginX) { item.x = -marginX; item.dx = Math.abs(item.dx); }
+                if (item.x > marginX)  { item.x = marginX; item.dx = -Math.abs(item.dx); }
+                if (item.y < -marginY) { item.y = -marginY; item.dy = Math.abs(item.dy); }
+                if (item.y > marginY)  { item.y = marginY; item.dy = -Math.abs(item.dy); }
+                if (item.z < minZ)     { item.z = minZ; item.dz = Math.abs(item.dz); }
+                if (item.z > maxZ)     { item.z = maxZ; item.dz = -Math.abs(item.dz); }
+
+                const cycleTime = time % ANIM.ASSEMBLE_CYCLE;
+                let t = 0;
+
+                if (cycleTime >= ANIM.ASSEMBLE_DRIFT && cycleTime < ANIM.ASSEMBLE_GRID_START) {
+                    t = cycleTime - ANIM.ASSEMBLE_DRIFT;
+                } else if (cycleTime >= ANIM.ASSEMBLE_GRID_START && cycleTime < ANIM.ASSEMBLE_GRID_END) {
+                    t = 1;
+                } else if (cycleTime >= ANIM.ASSEMBLE_GRID_END && cycleTime < ANIM.ASSEMBLE_CYCLE) {
+                    t = 1 - (cycleTime - ANIM.ASSEMBLE_GRID_END);
+                }
+
+                x = lerp(item.x, item.targetGridX * scale, t);
+                y = lerp(item.y, item.targetGridY * scale, t);
+                z = lerp(item.z, 0, t);
+                item.gatherWeight = t;
+                break;
+            }
+            case 'grid': {
+                const colTrackIdx = item.gridColTrack;
+                const trackNum = colTrackIdx === 0 ? numCol0 : (colTrackIdx === 1 ? numCol1 : numCol2);
+                const spacingY = Math.max(440, (vh + 380) / Math.max(1, trackNum));
+                const loopHeight = trackNum * spacingY;
+
+                const yRaw = colTrackIdx === 1
+                    ? item.gridColIndex * spacingY + scrollOffset
+                    : item.gridColIndex * spacingY - scrollOffset;
+
                 y = ((yRaw % loopHeight) + loopHeight) % loopHeight - (loopHeight / 2);
-                x = -vw * 0.22 * config.spread;
-            } else {
-                const yRaw = item.columnIndex * spacingY - scrollOffset;
-                y = ((yRaw % loopHeight) + loopHeight) % loopHeight - (loopHeight / 2);
-                x = vw * 0.22 * config.spread;
+                x = (colTrackIdx - 1) * vw * 0.28 * spread;
+                z = 0;
+                break;
             }
-            z = 0;
-        } else if (config.mode === 'rows') {
-            // --- Mode 5: 2D Rows (Top Left, Bottom Right) ---
-            const trackNum = item.rowTrack === 'top' ? numTop : numBottom;
-            
-            // horizontal spacing (image width 280 + spacing)
-            const spacingX = Math.max(340, (vw + 280) / Math.max(1, trackNum));
-            const loopWidth = trackNum * spacingX;
-            
-            if (item.rowTrack === 'top') {
-                const xRaw = item.rowIndex * spacingX - scrollOffset;
-                x = ((xRaw % loopWidth) + loopWidth) % loopWidth - (loopWidth / 2);
-                y = -vh * 0.22 * config.spread;
-            } else {
-                const xRaw = item.rowIndex * spacingX + scrollOffset;
-                x = ((xRaw % loopWidth) + loopWidth) % loopWidth - (loopWidth / 2);
-                y = vh * 0.22 * config.spread;
+            case 'cinematic': {
+                const nDepth = (item.z + 200) / 300;
+                const speedFactor = 0.5 + nDepth * 0.7;
+                item.x += speed * 0.75 * speedFactor;
+                item.y -= speed * 0.75 * speedFactor;
+
+                const limitX = vw * 0.75;
+                const limitY = vh * 0.75;
+
+                if (item.x > limitX || item.y < -limitY) {
+                    item.x = -limitX;
+                    item.y = limitY + (Math.random() - 0.5) * 150;
+                    item.z = -200 + Math.random() * 300;
+                }
+
+                x = item.x; y = item.y; z = item.z;
+
+                const fadeX = Math.min(1, (limitX - Math.abs(x)) / (limitX * 0.2));
+                const fadeY = Math.min(1, (limitY - Math.abs(y)) / (limitY * 0.2));
+                item.fadeOpacity = clamp(fadeX * fadeY, 0, 1);
+                break;
             }
-            z = 0;
-        } else if (config.mode === 'tunnel') {
-            // --- Mode 6: 3D Tunnel Zoom ---
-            // Move item forward in Z
-            item.z += 1.8 * config.speed;
-            
-            // If item flies past camera, wrap to deep background and randomize X/Y offsets
-            if (item.z > 500) {
-                item.z = -2500;
-                item.x = (Math.random() - 0.5) * vw * 0.6;
-                item.y = (Math.random() - 0.5) * vh * 0.6;
+            case 'vortex': {
+                const maxRadius = Math.max(vw, vh) * 0.6;
+                if (item.vortexRadius === undefined) {
+                    item.vortexRadius = Math.random() * maxRadius;
+                    item.vortexAngle = Math.random() * Math.PI * 2;
+                }
+
+                item.vortexAngle += 0.006 * speed;
+                item.vortexRadius += 1.2 * speed;
+
+                if (item.vortexRadius > maxRadius) {
+                    item.vortexRadius = 0;
+                    item.vortexAngle = Math.random() * Math.PI * 2;
+                }
+
+                x = Math.cos(item.vortexAngle) * item.vortexRadius * spread;
+                y = Math.sin(item.vortexAngle) * item.vortexRadius * spread;
+                z = ANIM.VORTEX_Z_MIN + (item.vortexRadius / maxRadius) * 1400;
+
+                let opacityWeight = 1.0;
+                if (item.vortexRadius < maxRadius * 0.15) {
+                    opacityWeight = item.vortexRadius / (maxRadius * 0.15);
+                } else if (item.vortexRadius > maxRadius * 0.8) {
+                    opacityWeight = 1.0 - (item.vortexRadius - maxRadius * 0.8) / (maxRadius * 0.2);
+                }
+                item.fadeOpacity = clamp(opacityWeight, 0, 1);
+
+                item.x = x; item.y = y; item.z = z;
+                break;
             }
-            
-            x = item.x;
-            y = item.y;
-            z = item.z;
-        } else if (config.mode === 'assemble') {
-            // --- Mode 7: Assemble (Drift/Grid Cycle) ---
-            // Update base drift coordinates in background
-            item.x += item.dx * config.speed;
-            item.y += item.dy * config.speed;
-            item.z += item.dz * config.speed;
-            
-            if (item.x < -marginX) { item.x = -marginX; item.dx = Math.abs(item.dx); }
-            if (item.x > marginX) { item.x = marginX; item.dx = -Math.abs(item.dx); }
-            if (item.y < -marginY) { item.y = -marginY; item.dy = Math.abs(item.dy); }
-            if (item.y > marginY) { item.y = marginY; item.dy = -Math.abs(item.dy); }
-            if (item.z < minZ) { item.z = minZ; item.dz = Math.abs(item.dz); }
-            if (item.z > maxZ) { item.z = maxZ; item.dz = -Math.abs(item.dz); }
-            
-            // Timers: 12-second cycle (8s drift, 4s grid)
-            const cycleTime = time % 12;
-            let t = 0; // target grid weight
-            
-            if (cycleTime >= 7 && cycleTime < 8) {
-                t = cycleTime - 7; // assembly transit (1 second)
-            } else if (cycleTime >= 8 && cycleTime < 11) {
-                t = 1; // display grid (3 seconds)
-            } else if (cycleTime >= 11 && cycleTime < 12) {
-                t = 1 - (cycleTime - 11); // explosion transit (1 second)
+            case 'pendulum': {
+                if (item.anchorX === undefined) {
+                    item.anchorX = (Math.random() - 0.5) * vw * 0.8;
+                    item.pendulumLength = vh * (0.35 + 0.3 * Math.random());
+                    item.pendulumPhase = Math.random() * Math.PI * 2;
+                    item.pendulumMaxAngle = 0.15 + Math.random() * 0.15;
+                }
+
+                const omega = 1.6 * speed;
+                const theta = item.pendulumMaxAngle * Math.sin(omega * time + item.pendulumPhase);
+
+                x = item.anchorX + Math.sin(theta) * item.pendulumLength * spread;
+                y = -vh * 0.45 + Math.cos(theta) * item.pendulumLength;
+                z = Math.sin(time + item.seed) * 50;
+
+                item.pendulumAngle = theta * (180 / Math.PI) * 0.8;
+                item.x = x; item.y = y; item.z = z;
+                break;
             }
-            
-            // Interpolate position
-            x = lerp(item.x, item.targetGridX * config.scale, t);
-            y = lerp(item.y, item.targetGridY * config.scale, t);
-            z = lerp(item.z, 0, t);
-            
-            // Save local weight for rotation calculation
-            item.gatherWeight = t;
-        } else if (config.mode === 'grid') {
-            // --- Mode 8: Grid Flow 2D Scrolling ---
-            const colTrackIdx = item.gridColTrack;
-            const trackNum = colTrackIdx === 0 ? numCol0 : (colTrackIdx === 1 ? numCol1 : numCol2);
-            
-            const spacingY = Math.max(440, (vh + 380) / Math.max(1, trackNum));
-            const loopHeight = trackNum * spacingY;
-            
-            let yRaw;
-            if (colTrackIdx === 1) {
-                // Middle column scrolls DOWN
-                yRaw = item.gridColIndex * spacingY + scrollOffset;
-            } else {
-                // Left and right columns scroll UP
-                yRaw = item.gridColIndex * spacingY - scrollOffset;
+            case 'shape': {
+                if (item.shapeAngle === undefined) {
+                    item.shapeAngle = (idx * 2 * Math.PI) / Math.max(1, mediaItems.length);
+                }
+
+                item.shapeAngle += 0.002 * speed;
+                const pt = getShapeCoordinates(config.shape, item.shapeAngle, vw, vh);
+                x = pt.x;
+                y = pt.y;
+                z = Math.sin(item.shapeAngle * 3 + item.seed) * 80 * spread;
+
+                item.x = x; item.y = y; item.z = z;
+                break;
             }
-            
-            y = ((yRaw % loopHeight) + loopHeight) % loopHeight - (loopHeight / 2);
-            x = (colTrackIdx - 1) * vw * 0.28 * config.spread;
-            z = 0;
-        } else if (config.mode === 'cinematic') {
-            // --- Mode 9: Cinematic Diagonal Sweep ---
-            // Calculate depth layers for multiplane parallax (Z ranges from -200 to 100)
-            const nDepth = (item.z + 200) / 300;
-            const speedFactor = 0.5 + nDepth * 0.7; // foreground moves faster
-            
-            item.x += config.speed * 0.75 * speedFactor;
-            item.y -= config.speed * 0.75 * speedFactor;
-            
-            const limitX = vw * 0.75;
-            const limitY = vh * 0.75;
-            
-            // Wrap back to bottom-left
-            if (item.x > limitX || item.y < -limitY) {
-                item.x = -limitX;
-                item.y = limitY + (Math.random() - 0.5) * 150;
-                item.z = -200 + Math.random() * 300;
-            }
-            
-            x = item.x;
-            y = item.y;
-            z = item.z;
-            
-            // Soft edge fading weight (fades out within 20% of the screen borders)
-            const fadeX = Math.min(1, (limitX - Math.abs(x)) / (limitX * 0.2));
-            const fadeY = Math.min(1, (limitY - Math.abs(y)) / (limitY * 0.2));
-            item.fadeOpacity = Math.max(0, Math.min(1, fadeX * fadeY));
-        } else if (config.mode === 'vortex') {
-            // --- Mode 10: Vortex 3D Spiral ---
-            const maxRadius = Math.max(vw, vh) * 0.6;
-            if (item.vortexRadius === undefined) {
-                item.vortexRadius = Math.random() * maxRadius;
-                item.vortexAngle = Math.random() * Math.PI * 2;
-            }
-            
-            item.vortexAngle += 0.006 * config.speed;
-            item.vortexRadius += 1.2 * config.speed;
-            
-            if (item.vortexRadius > maxRadius) {
-                item.vortexRadius = 0;
-                item.vortexAngle = Math.random() * Math.PI * 2;
-            }
-            
-            x = Math.cos(item.vortexAngle) * item.vortexRadius * config.spread;
-            y = Math.sin(item.vortexAngle) * item.vortexRadius * config.spread;
-            z = -1200 + (item.vortexRadius / maxRadius) * 1400;
-            
-            // Fade in at center and fade out at outer boundary
-            let opacityWeight = 1.0;
-            if (item.vortexRadius < maxRadius * 0.15) {
-                opacityWeight = item.vortexRadius / (maxRadius * 0.15);
-            } else if (item.vortexRadius > maxRadius * 0.8) {
-                opacityWeight = 1.0 - (item.vortexRadius - maxRadius * 0.8) / (maxRadius * 0.2);
-            }
-            item.fadeOpacity = Math.max(0, Math.min(1, opacityWeight));
-            
-            item.x = x;
-            item.y = y;
-            item.z = z;
-        } else if (config.mode === 'pendulum') {
-            // --- Mode 11: Pendulum Gravity Sway ---
-            if (item.anchorX === undefined) {
-                item.anchorX = (Math.random() - 0.5) * vw * 0.8;
-                item.pendulumLength = vh * (0.35 + 0.3 * Math.random());
-                item.pendulumPhase = Math.random() * Math.PI * 2;
-                item.pendulumMaxAngle = 0.15 + Math.random() * 0.15;
-            }
-            
-            const omega = 1.6 * config.speed;
-            const theta = item.pendulumMaxAngle * Math.sin(omega * time + item.pendulumPhase);
-            
-            x = item.anchorX + Math.sin(theta) * item.pendulumLength * config.spread;
-            y = -vh * 0.45 + Math.cos(theta) * item.pendulumLength;
-            z = Math.sin(time + item.seed) * 50; // subtle depth swing
-            
-            item.pendulumAngle = theta * (180 / Math.PI) * 0.8;
-            
-            item.x = x;
-            item.y = y;
-            item.z = z;
-        } else if (config.mode === 'shape') {
-            // --- Mode 12: Shape Flow ---
-            if (item.shapeAngle === undefined) {
-                // Distribute items evenly along the path when starting
-                item.shapeAngle = (mediaItems.indexOf(item) * 2 * Math.PI) / Math.max(1, mediaItems.length);
-            }
-            
-            // Advance angle based on speed
-            item.shapeAngle += 0.002 * config.speed;
-            
-            const pt = getShapeCoordinates(config.shape, item.shapeAngle, vw, vh);
-            x = pt.x;
-            y = pt.y;
-            // Add a subtle 3D wave depth swing to keep lookbook dimensional
-            z = Math.sin(item.shapeAngle * 3 + item.seed) * 80 * config.spread;
-            
-            item.x = x;
-            item.y = y;
-            item.z = z;
         }
-        
+
         // --- 3D Depth Rendering ---
         let modeMinZ = minZ;
         let modeMaxZ = maxZ;
-        if (config.mode === 'tunnel') {
-            modeMinZ = -2500;
-            modeMaxZ = 500;
-        } else if (config.mode === 'vortex') {
-            modeMinZ = -1200;
-            modeMaxZ = 200;
-        }
-        
+        if (mode === 'tunnel')      { modeMinZ = ANIM.TUNNEL_Z_MIN; modeMaxZ = ANIM.TUNNEL_Z_MAX; }
+        else if (mode === 'vortex') { modeMinZ = ANIM.VORTEX_Z_MIN; modeMaxZ = ANIM.VORTEX_Z_MAX; }
+
         const normalizedDepth = (z - modeMinZ) / (modeMaxZ - modeMinZ);
-        
-        // Size modifier + config scale
-        const scaleFactor = (0.55 + normalizedDepth * 0.7) * config.scale;
-        
-        
-        // Arrange proper CSS layers using rounded Z values (between 1 and 1000)
+        const scaleFactor = (0.55 + normalizedDepth * 0.7) * scale;
         const zIndex = Math.round(normalizedDepth * 900) + 50;
-        
-        // Total transforms
-        const finalX = x;
-        const finalY = y;
-        
-        // Rotate slightly based on movement direction for organic feel
+
+        // Rotation calculation
         let angleRot = 0;
-        if (config.mode === 'orbit') {
-            angleRot = Math.cos(item.orbitAngle) * -8;
-        } else if (config.mode === 'drift') {
-            angleRot = item.dx * 2;
-        } else if (config.mode === 'assemble') {
-            // Straighten rotation as target grid is approached
-            const gatherWeight = item.gatherWeight || 0;
-            angleRot = (item.dx * 2) * (1 - gatherWeight);
-        } else if (config.mode === 'vortex') {
-            angleRot = item.vortexAngle * (180 / Math.PI) * 0.15;
-        } else if (config.mode === 'pendulum' && item.pendulumAngle !== undefined) {
-            angleRot = item.pendulumAngle;
-        } else if (config.mode === 'shape' && item.shapeAngle !== undefined) {
-            angleRot = Math.cos(item.shapeAngle) * -8;
+        switch (mode) {
+            case 'orbit':
+                angleRot = Math.cos(item.orbitAngle) * -8;
+                break;
+            case 'drift':
+                angleRot = item.dx * 2;
+                break;
+            case 'assemble':
+                angleRot = (item.dx * 2) * (1 - (item.gatherWeight || 0));
+                break;
+            case 'vortex':
+                angleRot = item.vortexAngle * (180 / Math.PI) * 0.15;
+                break;
+            case 'pendulum':
+                if (item.pendulumAngle !== undefined) angleRot = item.pendulumAngle;
+                break;
+            case 'shape':
+                if (item.shapeAngle !== undefined) angleRot = Math.cos(item.shapeAngle) * -8;
+                break;
         }
-            
-        item.element.style.zIndex = zIndex;
-        
-        // Solid opacity by default, apply soft fade weight in cinematic and vortex modes
-        const finalOpacity = (config.mode === 'cinematic' || config.mode === 'vortex') ? (item.fadeOpacity !== undefined ? item.fadeOpacity : 1.0) : 1.0;
-        item.element.style.opacity = finalOpacity;
-        
-        // Save current coordinates for canvas export
-        item.renderX = finalX;
-        item.renderY = finalY;
+
+        // Opacity: solid by default, soft fade for cinematic/vortex
+        const finalOpacity = (mode === 'cinematic' || mode === 'vortex')
+            ? (item.fadeOpacity !== undefined ? item.fadeOpacity : 1.0)
+            : 1.0;
+
+        // Cache render coordinates for canvas export
+        item.renderX = x;
+        item.renderY = y;
         item.renderScale = scaleFactor;
         item.renderAngle = angleRot;
         item.renderZ = z;
 
-        // Apply 3D translates and rotations
-        item.element.style.transform = `translate3d(${finalX}px, ${finalY}px, ${z}px) rotateY(${angleRot}deg) scale(${scaleFactor})`;
-    });
-    
+        // Single composite DOM write per item
+        const el = item.element;
+        el.style.zIndex = zIndex;
+        el.style.opacity = finalOpacity;
+        el.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${angleRot}deg) scale(${scaleFactor})`;
+    }
+
     animationFrameId = requestAnimationFrame(animate);
 }
 
 
-// --- IndexedDB Database Operations ---
+// ============================================================
+//  SECTION 6 — IndexedDB Operations
+// ============================================================
+
+/** Initialize the IndexedDB database */
 function initDB(callback) {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (e) => {
@@ -779,16 +795,16 @@ function initDB(callback) {
     };
     request.onerror = (e) => {
         console.error('IndexedDB initialization failed:', e);
-        if (callback) callback(); // Proceed to boot animate anyway
+        if (callback) callback();
     };
 }
 
+/** Save a media file (Blob or URL string) to the database */
 function saveMediaToDB(file) {
     if (!db) return;
     try {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        store.add({
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        tx.objectStore(STORE_NAME).add({
             blob: file,
             isVideo: false,
             timestamp: Date.now()
@@ -798,30 +814,29 @@ function saveMediaToDB(file) {
     }
 }
 
+/** Load all persisted media from the database */
 function loadMediaFromDB() {
     if (!db) return;
-    const transaction = db.transaction([STORE_NAME], 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-    
+    const tx = db.transaction([STORE_NAME], 'readonly');
+    const request = tx.objectStore(STORE_NAME).getAll();
+
     request.onsuccess = (e) => {
         const items = e.target.result;
         if (items && items.length > 0) {
             hideIntroHint();
-            items.forEach((item) => {
-                if (item.isVideo) return; // Skip legacy video items
-                
+            items.forEach((record) => {
+                if (record.isVideo) return;
+
                 let url;
-                if (item.blob instanceof Blob) {
-                    url = URL.createObjectURL(item.blob);
-                } else if (typeof item.blob === 'string') {
-                    url = item.blob;
+                if (record.blob instanceof Blob) {
+                    url = URL.createObjectURL(record.blob);
+                } else if (typeof record.blob === 'string') {
+                    url = record.blob;
                 } else {
                     return;
                 }
-                
+
                 const mediaItem = createMediaElement(url);
-                
                 const rangeX = window.innerWidth * 0.5;
                 const rangeY = window.innerHeight * 0.5;
                 mediaItem.x = (Math.random() - 0.5) * rangeX;
@@ -834,68 +849,61 @@ function loadMediaFromDB() {
     };
 }
 
+/** Clear all media records from the database */
 function clearMediaDB() {
     if (!db) return;
     try {
-        const transaction = db.transaction([STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(STORE_NAME);
-        store.clear();
+        const tx = db.transaction([STORE_NAME], 'readwrite');
+        tx.objectStore(STORE_NAME).clear();
     } catch (err) {
         console.error('Failed to clear media database:', err);
     }
 }
 
+
+// ============================================================
+//  SECTION 7 — Export
+// ============================================================
+
+/** Export the current collage as a 2x resolution PNG */
 function exportCollageAsImage() {
     if (mediaItems.length === 0) return;
-    
+
     const canvas = document.createElement('canvas');
-    // Set to 2x window dimensions for high definition capture
-    const scale = 2;
-    canvas.width = window.innerWidth * scale;
-    canvas.height = window.innerHeight * scale;
-    
+    const dpr = 2;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+
     const ctx = canvas.getContext('2d');
-    
-    // Draw background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Sort items by their Z coordinate (depth) so we draw from back to front
+
     const sortedItems = [...mediaItems].sort((a, b) => a.z - b.z);
-    
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    
+
     sortedItems.forEach((item) => {
-        const rx = item.renderX !== undefined ? item.renderX : item.x;
-        const ry = item.renderY !== undefined ? item.renderY : item.y;
-        const rScale = item.renderScale !== undefined ? item.renderScale : 1;
-        const rAngle = item.renderAngle !== undefined ? item.renderAngle : 0;
-        const rOpacity = item.fadeOpacity !== undefined ? item.fadeOpacity : 1.0;
-        
+        const rx = item.renderX ?? item.x;
+        const ry = item.renderY ?? item.y;
+        const rScale = item.renderScale ?? 1;
+        const rAngle = item.renderAngle ?? 0;
+        const rOpacity = item.fadeOpacity ?? 1.0;
+
         ctx.save();
-        // Set opacity (useful for cinematic edge fades)
         ctx.globalAlpha = rOpacity;
-        
-        // Translate to screen space (scaled by 2x for HD)
-        ctx.translate(cx + rx * scale, cy + ry * scale);
+        ctx.translate(cx + rx * dpr, cy + ry * dpr);
         ctx.rotate(rAngle * Math.PI / 180);
-        ctx.scale(rScale * scale, rScale * scale);
-        
-        // Draw image
-        const w = item.baseWidth;
-        const h = item.baseHeight;
-        
+        ctx.scale(rScale * dpr, rScale * dpr);
+
         try {
-            ctx.drawImage(item.media, -w / 2, -h / 2, w, h);
+            ctx.drawImage(item.media, -item.baseWidth / 2, -item.baseHeight / 2, item.baseWidth, item.baseHeight);
         } catch (e) {
             console.error('Failed to draw element onto canvas:', e);
         }
-        
+
         ctx.restore();
     });
-    
-    // Trigger download
+
     try {
         const dataUrl = canvas.toDataURL('image/png');
         const link = document.createElement('a');
@@ -907,137 +915,128 @@ function exportCollageAsImage() {
     }
 }
 
-// --- Settings GUI handlers ---
+
+// ============================================================
+//  SECTION 8 — UI Controllers & Event Bindings
+// ============================================================
+
+/** Toggle settings panel visibility */
 function toggleSettings() {
-    settingsPanel.classList.toggle('hidden');
+    DOM.settingsPanel.classList.toggle('hidden');
     hideIntroHint();
 }
 
+/** Fade out and remove the intro hint */
 function hideIntroHint() {
-    const hint = document.getElementById('intro-hint');
-    if (hint && !hint.classList.contains('fade-out')) {
-        hint.classList.add('fade-out');
-        setTimeout(() => {
-            hint.remove();
-        }, 400);
+    if (DOM.introHint && !DOM.introHint.classList.contains('fade-out')) {
+        DOM.introHint.classList.add('fade-out');
+        setTimeout(() => DOM.introHint.remove(), 500);
     }
 }
 
-// Toggle on ESC key
+// --- Keyboard shortcuts ---
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' || e.key === 'h' || e.key === 'H') {
         toggleSettings();
     }
 });
 
-// Toggle on Double Click on background
-artboard.addEventListener('dblclick', (e) => {
-    // Avoid double clicking elements inside the setting panel itself
-    if (!settingsPanel.contains(e.target)) {
+// --- Double-click toggle on background ---
+DOM.artboard.addEventListener('dblclick', (e) => {
+    if (!DOM.settingsPanel.contains(e.target)) {
         toggleSettings();
     }
 });
 
-// Toggle on Single Tap / Click on background (handy for mobile and simple UX)
-artboard.addEventListener('click', (e) => {
-    if (e.target === artboard) {
+// --- Single tap/click toggle on background ---
+DOM.artboard.addEventListener('click', (e) => {
+    if (e.target === DOM.artboard) {
         toggleSettings();
     }
 });
 
-// Settings UI change bindings
+// --- Sync custom styled dropdowns with native selects ---
 function syncCustomModeDropdown() {
-    const val = controlMode.value;
-    const trigger = customSelect.querySelector('.custom-select-trigger');
-    const selectedOption = customSelect.querySelector(`.custom-option[data-value="${val}"]`);
-    
+    const val = DOM.controlMode.value;
+    const trigger = DOM.customModeSelect.querySelector('.custom-select-trigger');
+    const selectedOption = DOM.customModeSelect.querySelector(`.custom-option[data-value="${val}"]`);
+
     if (selectedOption) {
         if (trigger) trigger.textContent = selectedOption.textContent;
-        
-        customSelect.querySelectorAll('.custom-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
+        DOM.customModeSelect.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
         selectedOption.classList.add('selected');
     }
 }
 
 function syncCustomShapeDropdown() {
-    const val = controlShape.value;
-    const trigger = customShapeSelect.querySelector('.custom-select-trigger');
-    const selectedOption = customShapeSelect.querySelector(`.custom-option[data-value="${val}"]`);
-    
+    const val = DOM.controlShape.value;
+    const trigger = DOM.customShapeSelect.querySelector('.custom-select-trigger');
+    const selectedOption = DOM.customShapeSelect.querySelector(`.custom-option[data-value="${val}"]`);
+
     if (selectedOption) {
         if (trigger) trigger.textContent = selectedOption.textContent;
-        
-        customShapeSelect.querySelectorAll('.custom-option').forEach(opt => {
-            opt.classList.remove('selected');
-        });
+        DOM.customShapeSelect.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
         selectedOption.classList.add('selected');
     }
 }
 
-controlMode.addEventListener('change', (e) => {
+// --- Mode change ---
+DOM.controlMode.addEventListener('change', (e) => {
     config.mode = e.target.value;
     distributeElements();
     syncCustomModeDropdown();
     toggleShapeSelectorVisibility();
 });
 
-// Custom dropdown select listeners
-const customSelect = document.getElementById('custom-mode-select');
-const customTrigger = customSelect.querySelector('.custom-select-trigger');
-const customOptions = customSelect.querySelectorAll('.custom-option');
+// --- Custom mode dropdown ---
+const customModeTrigger = DOM.customModeSelect.querySelector('.custom-select-trigger');
+const customModeOptions = DOM.customModeSelect.querySelectorAll('.custom-option');
 
-customTrigger.addEventListener('click', (e) => {
+customModeTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
-    customSelect.classList.toggle('open');
-    customShapeSelect.classList.remove('open');
+    DOM.customModeSelect.classList.toggle('open');
+    DOM.customShapeSelect.classList.remove('open');
 });
 
-customOptions.forEach(opt => {
-    opt.addEventListener('click', (e) => {
-        const val = opt.getAttribute('data-value');
-        controlMode.value = val;
-        controlMode.dispatchEvent(new Event('change'));
-        customSelect.classList.remove('open');
+customModeOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+        DOM.controlMode.value = opt.getAttribute('data-value');
+        DOM.controlMode.dispatchEvent(new Event('change'));
+        DOM.customModeSelect.classList.remove('open');
     });
 });
 
-// Custom shape select dropdown listeners
-const customShapeTrigger = customShapeSelect.querySelector('.custom-select-trigger');
+// --- Custom shape dropdown ---
+const customShapeTrigger = DOM.customShapeSelect.querySelector('.custom-select-trigger');
 
 customShapeTrigger.addEventListener('click', (e) => {
     e.stopPropagation();
-    customSelect.classList.remove('open');
-    customShapeSelect.classList.toggle('open');
+    DOM.customModeSelect.classList.remove('open');
+    DOM.customShapeSelect.classList.toggle('open');
 });
 
 function bindCustomShapeOptions() {
-    const customShapeOptions = customShapeSelect.querySelectorAll('.custom-option');
-    customShapeOptions.forEach(opt => {
-        // Use onclick to avoid stacking duplicate event listeners
-        opt.onclick = (e) => {
-            const val = opt.getAttribute('data-value');
-            controlShape.value = val;
-            controlShape.dispatchEvent(new Event('change'));
-            customShapeSelect.classList.remove('open');
+    DOM.customShapeSelect.querySelectorAll('.custom-option').forEach(opt => {
+        opt.onclick = () => {
+            DOM.controlShape.value = opt.getAttribute('data-value');
+            DOM.controlShape.dispatchEvent(new Event('change'));
+            DOM.customShapeSelect.classList.remove('open');
         };
     });
 }
 bindCustomShapeOptions();
 
-controlShape.addEventListener('change', (e) => {
+// --- Shape change ---
+DOM.controlShape.addEventListener('change', (e) => {
     const val = e.target.value;
-    
+
     if (val === 'draw') {
         startInteractiveDrawing();
-        // Reset control value to previous shape to prevent "draw" from sticking
-        controlShape.value = config.shape;
+        DOM.controlShape.value = config.shape;
         syncCustomShapeDropdown();
     } else if (val === 'upload') {
-        controlShapeUpload.click();
-        // Reset control value
-        controlShape.value = config.shape;
+        DOM.controlShapeUpload.click();
+        DOM.controlShape.value = config.shape;
         syncCustomShapeDropdown();
     } else {
         config.shape = val;
@@ -1049,92 +1048,90 @@ controlShape.addEventListener('change', (e) => {
     }
 });
 
-// Close custom dropdowns when clicking outside
+// --- Close dropdowns on outside click ---
 window.addEventListener('click', () => {
-    if (customSelect.classList.contains('open')) {
-        customSelect.classList.remove('open');
-    }
-    if (customShapeSelect.classList.contains('open')) {
-        customShapeSelect.classList.remove('open');
-    }
+    DOM.customModeSelect.classList.remove('open');
+    DOM.customShapeSelect.classList.remove('open');
 });
 
-controlSpeed.addEventListener('input', (e) => {
-    config.speed = parseFloat(e.target.value);
-});
-
-controlScale.addEventListener('input', (e) => {
-    config.scale = parseFloat(e.target.value);
-});
-
-controlSpread.addEventListener('input', (e) => {
+// --- Parameter sliders ---
+DOM.controlSpeed.addEventListener('input', (e) => { config.speed = parseFloat(e.target.value); });
+DOM.controlScale.addEventListener('input', (e) => { config.scale = parseFloat(e.target.value); });
+DOM.controlSpread.addEventListener('input', (e) => {
     config.spread = parseFloat(e.target.value);
     updateShapeOverlayPath();
 });
 
-controlClear.addEventListener('click', () => {
+// --- Action buttons ---
+DOM.controlClear.addEventListener('click', () => {
     clearAllMedia();
     clearMediaDB();
 });
 
-controlReset.addEventListener('click', () => {
+DOM.controlReset.addEventListener('click', () => {
     clearAllMedia();
     clearMediaDB();
+
     config.mode = 'drift';
     config.speed = 0.5;
     config.scale = 1.0;
     config.spread = 1.0;
     config.shape = 'heart';
-    
-    // Reset values in UI
-    controlMode.value = 'drift';
-    controlSpeed.value = 0.5;
-    controlScale.value = 1.0;
-    controlSpread.value = 1.0;
-    controlShape.value = 'heart';
-    
-    // Remove injected custom option if exists
-    const customOpt = Array.from(controlShape.options).find(opt => opt.value === 'custom');
+
+    DOM.controlMode.value = 'drift';
+    DOM.controlSpeed.value = 0.5;
+    DOM.controlScale.value = 1.0;
+    DOM.controlSpread.value = 1.0;
+    DOM.controlShape.value = 'heart';
+
+    // Clean up injected custom option
+    const customOpt = Array.from(DOM.controlShape.options).find(opt => opt.value === 'custom');
     if (customOpt) customOpt.remove();
-    const customDivOpt = customShapeSelect.querySelector('.custom-option[data-value="custom"]');
+    const customDivOpt = DOM.customShapeSelect.querySelector('.custom-option[data-value="custom"]');
     if (customDivOpt) customDivOpt.remove();
     bindCustomShapeOptions();
-    
+
     syncCustomModeDropdown();
     syncCustomShapeDropdown();
     toggleShapeSelectorVisibility();
 });
 
-controlExport.addEventListener('click', () => {
-    exportCollageAsImage();
-});
+DOM.controlExport.addEventListener('click', exportCollageAsImage);
 
-// Window resize listener
+// --- Debounced resize handler ---
+let resizeTimer;
 window.addEventListener('resize', () => {
-    updateShapeOverlayPath();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        updateShapeOverlayPath();
+        distributeElements();
+    }, 150);
 });
 
-// --- Interactive Custom Drawing canvas ---
+
+// ============================================================
+//  SECTION 9 — Interactive Custom Drawing Canvas
+// ============================================================
+
 function startInteractiveDrawing() {
-    drawingOverlay.style.display = 'flex';
-    
-    drawingCanvas.width = window.innerWidth;
-    drawingCanvas.height = window.innerHeight;
-    
-    drawingCtx = drawingCanvas.getContext('2d');
+    DOM.drawingOverlay.style.display = 'flex';
+    DOM.drawingCanvas.width = window.innerWidth;
+    DOM.drawingCanvas.height = window.innerHeight;
+
+    drawingCtx = DOM.drawingCanvas.getContext('2d');
     drawingCtx.strokeStyle = '#111111';
     drawingCtx.lineWidth = 3.5;
     drawingCtx.lineCap = 'round';
     drawingCtx.lineJoin = 'round';
     drawingCtx.shadowColor = 'rgba(0, 0, 0, 0.15)';
     drawingCtx.shadowBlur = 8;
-    
+
     drawingPoints = [];
     isDrawing = false;
 }
 
 function stopInteractiveDrawing(save = false) {
-    drawingOverlay.style.display = 'none';
+    DOM.drawingOverlay.style.display = 'none';
     if (save && drawingPoints.length > 8) {
         let d = `M ${drawingPoints[0].x} ${drawingPoints[0].y}`;
         for (let i = 1; i < drawingPoints.length; i++) {
@@ -1147,26 +1144,20 @@ function stopInteractiveDrawing(save = false) {
     isDrawing = false;
 }
 
-cancelDrawingBtn.addEventListener('click', () => {
-    stopInteractiveDrawing(false);
-});
+DOM.cancelDrawingBtn.addEventListener('click', () => stopInteractiveDrawing(false));
 
-function getMousePos(canvas, evt) {
+function getPointerPos(canvas, evt) {
     const rect = canvas.getBoundingClientRect();
     const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
     const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-    return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
-    };
+    return { x: clientX - rect.left, y: clientY - rect.top };
 }
 
 function handleDrawStart(e) {
     e.preventDefault();
     isDrawing = true;
-    const pos = getMousePos(drawingCanvas, e);
+    const pos = getPointerPos(DOM.drawingCanvas, e);
     drawingPoints.push(pos);
-    
     drawingCtx.beginPath();
     drawingCtx.moveTo(pos.x, pos.y);
 }
@@ -1174,10 +1165,8 @@ function handleDrawStart(e) {
 function handleDrawMove(e) {
     if (!isDrawing) return;
     e.preventDefault();
-    
-    const pos = getMousePos(drawingCanvas, e);
+    const pos = getPointerPos(DOM.drawingCanvas, e);
     drawingPoints.push(pos);
-    
     drawingCtx.lineTo(pos.x, pos.y);
     drawingCtx.stroke();
 }
@@ -1188,46 +1177,48 @@ function handleDrawEnd(e) {
     stopInteractiveDrawing(true);
 }
 
-drawingCanvas.addEventListener('mousedown', handleDrawStart);
-drawingCanvas.addEventListener('mousemove', handleDrawMove);
+DOM.drawingCanvas.addEventListener('mousedown', handleDrawStart);
+DOM.drawingCanvas.addEventListener('mousemove', handleDrawMove);
 window.addEventListener('mouseup', (e) => {
-    if (isDrawing && e.target === drawingCanvas) {
+    if (isDrawing && e.target === DOM.drawingCanvas) {
         handleDrawEnd(e);
     } else {
         isDrawing = false;
     }
 });
 
-drawingCanvas.addEventListener('touchstart', handleDrawStart);
-drawingCanvas.addEventListener('touchmove', handleDrawMove);
-drawingCanvas.addEventListener('touchend', handleDrawEnd);
+DOM.drawingCanvas.addEventListener('touchstart', handleDrawStart, { passive: false });
+DOM.drawingCanvas.addEventListener('touchmove', handleDrawMove, { passive: false });
+DOM.drawingCanvas.addEventListener('touchend', handleDrawEnd);
 
-// --- SVG File Upload Handler ---
-controlShapeUpload.addEventListener('change', (e) => {
+
+// ============================================================
+//  SECTION 10 — SVG File Upload Handler
+// ============================================================
+
+DOM.controlShapeUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     const reader = new FileReader();
     reader.onload = function(evt) {
         const svgText = evt.target.result;
         const parser = new DOMParser();
         const doc = parser.parseFromString(svgText, 'image/svg+xml');
-        
         const pathEl = doc.querySelector('path, polygon, polyline, circle, rect, ellipse');
-        
+
         if (!pathEl) {
             alert("No vector path geometry found inside the SVG. Please make sure it contains a valid path or shape.");
             return;
         }
-        
+
         let d = "";
         const tagName = pathEl.tagName.toLowerCase();
-        
+
         if (tagName === 'path') {
             d = pathEl.getAttribute('d');
         } else if (tagName === 'polygon' || tagName === 'polyline') {
-            const pointsStr = pathEl.getAttribute('points');
-            const pairs = pointsStr.trim().split(/\s+/);
+            const pairs = pathEl.getAttribute('points').trim().split(/\s+/);
             if (pairs.length > 2) {
                 d = `M ${pairs[0].replace(',', ' ')}`;
                 for (let i = 1; i < pairs.length; i++) {
@@ -1247,7 +1238,7 @@ controlShapeUpload.addEventListener('change', (e) => {
             const h = parseFloat(pathEl.getAttribute('height') || 0);
             d = `M ${rx} ${ry} L ${rx + w} ${ry} L ${rx + w} ${ry + h} L ${rx} ${ry + h} Z`;
         }
-        
+
         if (d) {
             loadCustomSvgPath(d);
         } else {
@@ -1258,23 +1249,26 @@ controlShapeUpload.addEventListener('change', (e) => {
     e.target.value = "";
 });
 
-// --- File Import (Picker & Drag/Drop) ---
+
+// ============================================================
+//  SECTION 11 — File Import (Picker & Drag/Drop)
+// ============================================================
+
+/**
+ * Process dropped/selected image files.
+ * @param {FileList} files
+ */
 function handleFiles(files) {
     if (files.length === 0) return;
     hideIntroHint();
-    
+
     Array.from(files).forEach((file) => {
-        const isImage = file.type.startsWith('image/');
-        if (!isImage) return;
-        
-        // Save Blob into database
+        if (!file.type.startsWith('image/')) return;
+
         saveMediaToDB(file);
-        
-        // Create Local URL representation of the Blob (instant, low memory)
         const url = URL.createObjectURL(file);
         const item = createMediaElement(url);
-        
-        // Position the newly uploaded item
+
         const rangeX = window.innerWidth * 0.5;
         const rangeY = window.innerHeight * 0.5;
         item.x = (Math.random() - 0.5) * rangeX;
@@ -1284,18 +1278,20 @@ function handleFiles(files) {
     });
 }
 
+/**
+ * Process an image URL input.
+ * @param {string} url
+ */
 function handleURL(url) {
     if (!url) return;
     url = url.trim();
     if (url === "") return;
-    
+
     hideIntroHint();
-    
+
     const addImage = (src, blobOrUrlToSave) => {
         saveMediaToDB(blobOrUrlToSave);
         const item = createMediaElement(src);
-        
-        // Position the newly uploaded item
         const rangeX = window.innerWidth * 0.5;
         const rangeY = window.innerHeight * 0.5;
         item.x = (Math.random() - 0.5) * rangeX;
@@ -1303,8 +1299,7 @@ function handleURL(url) {
         item.z = (Math.random() - 0.5) * 300;
         item.orbitAngle = Math.random() * Math.PI * 2;
     };
-    
-    // Try fetching the URL as a blob for local database persistence and high-res canvas exports
+
     fetch(url)
         .then(response => {
             if (!response.ok) throw new Error('Network response was not ok');
@@ -1317,33 +1312,26 @@ function handleURL(url) {
             }
             const localUrl = URL.createObjectURL(blob);
             addImage(localUrl, blob);
-            controlUrlInput.value = ""; // clear input
+            DOM.controlUrlInput.value = "";
         })
         .catch(err => {
             console.warn('CORS or network error fetching URL as blob. Falling back to direct URL load:', err);
-            // Fallback: direct URL load. We save the string URL to IndexedDB so it still persists
             addImage(url, url);
-            controlUrlInput.value = ""; // clear input
+            DOM.controlUrlInput.value = "";
         });
 }
 
-// URL Input bindings
-controlUrlSubmit.addEventListener('click', () => {
-    handleURL(controlUrlInput.value);
-});
-
-controlUrlInput.addEventListener('keydown', (e) => {
-    // Prevent default form behavior if inside form, and trigger handleURL
+// URL input bindings
+DOM.controlUrlSubmit.addEventListener('click', () => handleURL(DOM.controlUrlInput.value));
+DOM.controlUrlInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        handleURL(controlUrlInput.value);
+        handleURL(DOM.controlUrlInput.value);
     }
 });
 
-// File Input Picker
-controlUpload.addEventListener('change', (e) => {
-    handleFiles(e.target.files);
-});
+// File picker
+DOM.controlUpload.addEventListener('change', (e) => handleFiles(e.target.files));
 
 // Drag & Drop
 window.addEventListener('dragover', (e) => {
@@ -1353,7 +1341,6 @@ window.addEventListener('dragover', (e) => {
 
 window.addEventListener('dragleave', (e) => {
     e.preventDefault();
-    // Only remove class if drag leaves window completely
     if (e.clientX === 0 && e.clientY === 0) {
         document.body.classList.remove('drag-over');
     }
@@ -1367,12 +1354,47 @@ window.addEventListener('drop', (e) => {
     }
 });
 
-// --- Boot Application ---
+
+// ============================================================
+//  SECTION 12 — Mobile Touch Gesture (Swipe Up to Open Settings)
+// ============================================================
+
+let touchStartY = 0;
+let touchStartTime = 0;
+
+document.addEventListener('touchstart', (e) => {
+    // Only track swipes starting from the bottom 15% of the screen
+    if (e.touches[0].clientY > window.innerHeight * 0.85) {
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', (e) => {
+    if (touchStartY === 0) return;
+
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchStartY - touchEndY;
+    const elapsed = Date.now() - touchStartTime;
+
+    // Swipe up gesture: >60px distance, <400ms duration
+    if (deltaY > 60 && elapsed < 400 && DOM.settingsPanel.classList.contains('hidden')) {
+        DOM.settingsPanel.classList.remove('hidden');
+        hideIntroHint();
+    }
+
+    touchStartY = 0;
+}, { passive: true });
+
+
+// ============================================================
+//  SECTION 13 — Boot Sequence
+// ============================================================
+
 initDB(() => {
     loadMediaFromDB();
     animate();
-    // Initially hide settings panel after boot so the canvas looks pure right away
-    settingsPanel.classList.add('hidden');
+    DOM.settingsPanel.classList.add('hidden');
     syncCustomModeDropdown();
     syncCustomShapeDropdown();
     toggleShapeSelectorVisibility();
