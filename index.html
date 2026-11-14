@@ -1,32 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Dynamic Art Collage — Interactive Lookbook Tool</title>
-    <meta name="description" content="A minimalist dynamic art collage display for floating images and motion compositions. Drop images, choose from 12 animation modes, and export high-res PNGs.">
-    <meta name="theme-color" content="#ffffff">
-    <meta name="color-scheme" content="light">
+    <title>Dynamic Art Collage — Interactive 3D Lookbook & Motion Tool</title>
+    <meta name="description" content="A minimalist dynamic art collage display for floating images, videos, and motion compositions. Drop media, choose from 15 animation modes, customize themes, and export high-res PNGs or WebM videos.">
+    <meta name="theme-color" content="#ffffff" id="meta-theme-color">
+    <meta name="color-scheme" content="light dark">
     <link rel="stylesheet" href="style.css">
     <!-- Preconnect for faster font loading -->
     <link rel="preconnect" href="https://fonts.cdnfonts.com" crossorigin>
 </head>
 <body>
+    <h1 class="sr-only">Dynamic Art Collage — Interactive 3D Lookbook Tool</h1>
+
     <!-- Main canvas container for floating items -->
     <div id="artboard" role="main" aria-label="Art collage canvas"></div>
 
     <!-- SVG overlay for shape outline path -->
     <svg id="shape-overlay" aria-hidden="true">
-        <path id="shape-path" fill="none" stroke="rgba(0, 0, 0, 0.08)" stroke-width="1.2" stroke-dasharray="4,6" />
+        <path id="shape-path" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="4,6" />
     </svg>
 
     <!-- Hidden drop-zone overlay hint -->
-    <div id="drop-hint" aria-hidden="true">Drop images here</div>
+    <div id="drop-hint" aria-hidden="true">Drop images or videos here</div>
 
     <!-- Startup instructions hint in the center -->
     <div id="intro-hint" aria-live="polite">
-        Press ESC or Double-Click to configure<br>
-        <span class="mobile-hint">Tap screen or gear icon to open settings</span>
+        <div class="intro-title">Drop images or videos anywhere</div>
+        <div class="intro-subtitle">
+            Press <kbd>ESC</kbd> or <strong>Double-Click</strong> to configure · <kbd>Space</kbd> to pause
+            <span class="mobile-hint">Tap screen or gear icon to open settings</span>
+        </div>
+        <button id="load-samples-btn" type="button" class="intro-sample-btn">✦ Try with Sample Art</button>
+    </div>
+
+    <!-- Floating top status pill (shown when paused or recording) -->
+    <div id="status-pill" class="hidden" aria-live="polite">
+        <span class="status-dot"></span>
+        <span id="status-text">Paused</span>
     </div>
 
     <!-- Floating settings trigger button for mobile/touch -->
@@ -51,6 +63,7 @@
             <button id="close-settings-btn" type="button" aria-label="Close settings">✕</button>
         </div>
 
+        <!-- 1. Animation Mode -->
         <div class="settings-section">
             <label for="control-mode">Mode</label>
             <div class="custom-select" id="custom-mode-select">
@@ -66,6 +79,9 @@
                     <option value="cinematic">Cinematic (Diagonal Sweep)</option>
                     <option value="vortex">Vortex (3D Spiral)</option>
                     <option value="pendulum">Pendulum (Gravity Sway)</option>
+                    <option value="helix">DNA Helix (Double Spiral)</option>
+                    <option value="wave">Wave Field (3D Ocean)</option>
+                    <option value="sphere">Fibonacci Sphere (3D Globe)</option>
                     <option value="shape">Shape Flow (Dessin/Forme)</option>
                 </select>
                 <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">3D Drift (Floating)</div>
@@ -81,34 +97,49 @@
                     <div class="custom-option" data-value="cinematic" role="option">Cinematic (Diagonal Sweep)</div>
                     <div class="custom-option" data-value="vortex" role="option">Vortex (3D Spiral)</div>
                     <div class="custom-option" data-value="pendulum" role="option">Pendulum (Gravity Sway)</div>
+                    <div class="custom-option" data-value="helix" role="option">DNA Helix (Double Spiral)</div>
+                    <div class="custom-option" data-value="wave" role="option">Wave Field (3D Ocean)</div>
+                    <div class="custom-option" data-value="sphere" role="option">Fibonacci Sphere (3D Globe)</div>
                     <div class="custom-option" data-value="shape" role="option">Shape Flow (Dessin/Forme)</div>
                 </div>
             </div>
         </div>
 
-        <!-- Hidden Shape Selector Section (toggled dynamically in JS) -->
+        <!-- 2. Conditional Shape Selector Section -->
         <div class="settings-section" id="shape-selector-section" style="display: none;">
             <label for="control-shape">Shape</label>
-            <div class="custom-select" id="custom-shape-select">
-                <select id="control-shape" aria-label="Shape Selection">
-                    <option value="heart" selected>Heart (Cœur)</option>
-                    <option value="star">Star (Étoile)</option>
-                    <option value="infinity">Infinity (Infini)</option>
-                    <option value="draw">Draw Shape</option>
-                    <option value="upload">Upload SVG</option>
-                </select>
-                <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">Heart (Cœur)</div>
-                <div class="custom-select-options" role="listbox">
-                    <div class="custom-option selected" data-value="heart" role="option">Heart (Cœur)</div>
-                    <div class="custom-option" data-value="star" role="option">Star (Étoile)</div>
-                    <div class="custom-option" data-value="infinity" role="option">Infinity (Infini)</div>
-                    <div class="custom-option" data-value="draw" role="option">* Draw Shape (Dessiner...)</div>
-                    <div class="custom-option" data-value="upload" role="option">* Upload SVG (Importer SVG...)</div>
+            <div class="shape-controls-row">
+                <div class="custom-select" id="custom-shape-select">
+                    <select id="control-shape" aria-label="Shape Selection">
+                        <option value="heart" selected>Heart (Cœur)</option>
+                        <option value="star">Star (Étoile)</option>
+                        <option value="infinity">Infinity (Infini)</option>
+                        <option value="butterfly">Butterfly (Papillon)</option>
+                        <option value="lissajous">Lissajous (Harmonie)</option>
+                        <option value="spiral">Spiral (Spirale)</option>
+                        <option value="text">Text Path (Texte...)</option>
+                        <option value="draw">Draw Shape</option>
+                        <option value="upload">Upload SVG</option>
+                    </select>
+                    <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">Heart (Cœur)</div>
+                    <div class="custom-select-options" role="listbox">
+                        <div class="custom-option selected" data-value="heart" role="option">Heart (Cœur)</div>
+                        <div class="custom-option" data-value="star" role="option">Star (Étoile)</div>
+                        <div class="custom-option" data-value="infinity" role="option">Infinity (Infini)</div>
+                        <div class="custom-option" data-value="butterfly" role="option">Butterfly (Papillon)</div>
+                        <div class="custom-option" data-value="lissajous" role="option">Lissajous (Harmonie)</div>
+                        <div class="custom-option" data-value="spiral" role="option">Spiral (Spirale)</div>
+                        <div class="custom-option" data-value="text" role="option">* Text Path (Mot/Texte...)</div>
+                        <div class="custom-option" data-value="draw" role="option">* Draw Shape (Dessiner...)</div>
+                        <div class="custom-option" data-value="upload" role="option">* Upload SVG (Importer SVG...)</div>
+                    </div>
                 </div>
+                <input type="text" id="control-shape-text" class="shape-text-input" placeholder="WORD" maxlength="10" value="ART" aria-label="Shape text word" style="display: none;">
             </div>
             <input type="file" id="control-shape-upload" accept=".svg" style="display: none;">
         </div>
 
+        <!-- 3. Motion Parameters & Scene Controls -->
         <div class="settings-section parameters-group">
             <div class="parameter-item">
                 <label for="control-speed">Speed</label>
@@ -122,31 +153,74 @@
                 <label for="control-spread">Spread</label>
                 <input type="range" id="control-spread" min="0.1" max="2" step="0.05" value="1.0">
             </div>
-        </div>
-
-        <div class="settings-section">
-            <span class="settings-label">Add Media</span>
-            <label for="control-upload" class="upload-btn">Upload Images</label>
-            <input type="file" id="control-upload" multiple accept="image/*" style="display: none;">
-        </div>
-
-        <div class="settings-section">
-            <label for="control-url-input">Add from URL</label>
-            <div class="url-input-group">
-                <input type="url" id="control-url-input" placeholder="Paste image or GIF URL...">
-                <button id="control-url-submit" type="button">Add</button>
+            <div class="parameter-item scene-toggles-item">
+                <span class="settings-label">Scene</span>
+                <div class="scene-toggles">
+                    <button id="control-pause" type="button" class="icon-toggle-btn" title="Pause / Resume Animation (Space)" aria-label="Pause Animation" aria-pressed="false">
+                        <span id="pause-icon">⏸</span>
+                    </button>
+                    <button id="control-parallax" type="button" class="icon-toggle-btn active" title="Toggle 3D Mouse Parallax (P)" aria-label="Toggle 3D Parallax" aria-pressed="true">
+                        3D
+                    </button>
+                </div>
             </div>
         </div>
 
-        <div class="settings-section actions">
-            <button id="control-clear" type="button">Clear All</button>
-            <button id="control-reset" type="button">Reset Defaults</button>
-            <button id="control-export" type="button">Export Image</button>
+        <!-- 4. Visual Style (Theme & Card Frame) -->
+        <div class="settings-section style-group">
+            <div class="style-subitem">
+                <span class="settings-label">Backdrop</span>
+                <div class="theme-swatches" role="radiogroup" aria-label="Canvas Theme">
+                    <button type="button" class="theme-swatch active" data-theme-val="light" title="Pure White" aria-label="Pure White theme"></button>
+                    <button type="button" class="theme-swatch" data-theme-val="warm" title="Warm Gallery" aria-label="Warm Gallery theme"></button>
+                    <button type="button" class="theme-swatch" data-theme-val="gray" title="Studio Gray" aria-label="Studio Gray theme"></button>
+                    <button type="button" class="theme-swatch" data-theme-val="dark" title="Obsidian Dark" aria-label="Obsidian Dark theme"></button>
+                    <button type="button" class="theme-swatch" data-theme-val="midnight" title="Midnight Blue" aria-label="Midnight Blue theme"></button>
+                </div>
+            </div>
+            <div class="style-subitem">
+                <label for="control-card-style">Frame</label>
+                <div class="custom-select compact-select" id="custom-card-select">
+                    <select id="control-card-style" aria-label="Card Frame Style">
+                        <option value="minimal" selected>Raw Edge</option>
+                        <option value="shadow">Soft Shadow</option>
+                        <option value="polaroid">Polaroid</option>
+                        <option value="glass">Glass Frame</option>
+                    </select>
+                    <div class="custom-select-trigger" role="button" tabindex="0" aria-haspopup="listbox">Raw Edge</div>
+                    <div class="custom-select-options" role="listbox">
+                        <div class="custom-option selected" data-value="minimal" role="option">Raw Edge</div>
+                        <div class="custom-option" data-value="shadow" role="option">Soft Shadow</div>
+                        <div class="custom-option" data-value="polaroid" role="option">Polaroid</div>
+                        <div class="custom-option" data-value="glass" role="option">Glass Frame</div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- 5. Add Media (Upload & URL) -->
+        <div class="settings-section media-section">
+            <span class="settings-label">Add Media <span class="badge-count" id="media-count-badge">0</span></span>
+            <div class="media-inputs-row">
+                <label for="control-upload" class="upload-btn" title="Upload images, GIFs, or MP4/WebM videos">+ Upload</label>
+                <input type="file" id="control-upload" multiple accept="image/*,video/mp4,video/webm,video/ogg,video/quicktime" style="display: none;">
+                <div class="url-input-group">
+                    <input type="url" id="control-url-input" placeholder="Image, GIF or MP4 URL...">
+                    <button id="control-url-submit" type="button">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Actions -->
+        <div class="settings-section actions">
+            <button id="control-export" type="button" title="Export 2x High-Res PNG">Export PNG</button>
+            <button id="control-record" type="button" title="Record 6s WebM Video Animation">Record Video</button>
+            <button id="control-reset" type="button" title="Reset parameters and clear canvas">Reset</button>
+            <button id="control-clear" type="button" title="Remove all media">Clear</button>
+        </div>
+
         <div class="settings-section footer">
             <span class="settings-label" aria-hidden="true" style="visibility: hidden; margin-bottom: 4px;">&nbsp;</span>
-            <p>Drag & drop media anywhere on screen.</p>
-            <p>Press <strong>ESC</strong> or <strong>Double-Click</strong> to hide.</p>
             <p class="credit">Made by Nicolas Marie-Angélique</p>
         </div>
     </aside>
@@ -156,6 +230,26 @@
         <div class="drawing-instruction">Draw a closed shape outline with mouse or finger...</div>
         <canvas id="drawing-canvas"></canvas>
         <button id="cancel-drawing-btn" type="button">Cancel</button>
+    </div>
+
+    <!-- Lightbox Modal for Inspecting / Managing Individual Media -->
+    <div id="lightbox-modal" class="hidden" role="dialog" aria-modal="true" aria-label="Media preview">
+        <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+        <div class="lightbox-content">
+            <div class="lightbox-media-wrapper" id="lightbox-media-wrapper"></div>
+            <div class="lightbox-toolbar">
+                <div class="lightbox-nav">
+                    <button type="button" id="lightbox-prev" aria-label="Previous item" title="Previous (←)">←</button>
+                    <span id="lightbox-counter">1 / 1</span>
+                    <button type="button" id="lightbox-next" aria-label="Next item" title="Next (→)">→</button>
+                </div>
+                <div class="lightbox-actions">
+                    <button type="button" id="lightbox-download" title="Download this file">Download</button>
+                    <button type="button" id="lightbox-delete" class="danger-btn" title="Remove from collage (Delete)">Delete Item</button>
+                    <button type="button" id="lightbox-close" aria-label="Close preview" title="Close (ESC)">✕</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>
